@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOLPOT — The Last Bid Wins | Solana Jackpot Arena</title>
+  <meta name="description" content="60 seconds. Last bid wins. 100% provably fair on Solana. Hold $SOLPOT tokens to play." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <canvas id="rain"></canvas>
+
+  <!-- ==================== TOP BANNER (CA & PUMP) ==================== -->
+  <div class="top-banner" id="top-ca-banner">
+    <div class="top-banner-content">
+      <span class="pulse-dot"></span>
+      <span style="font-weight: 500;">$SOLPOT CA:</span>
+      <code class="ca-text" id="ca-text">TBD_REPLACE_WITH_PUMPFUN_MINT</code>
+      <button class="ca-copy-btn" id="ca-copy-btn" title="Copy CA">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      </button>
+      <a href="https://pump.fun/" target="_blank" rel="noopener" class="top-banner-link">Trade on Pump.fun ↗</a>
+    </div>
+  </div>
+
+  <!-- ==================== NAVBAR ==================== -->
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="index.html" style="display:flex; align-items:center; text-decoration:none; gap:12px;">
+        <img src="solpot_square.png" class="brand-logo-img" alt="SolPot" />
+        <div class="brand-text">
+          <span class="brand-name">SOLPOT</span>
+          <span class="brand-sub">Provably Fair</span>
+        </div>
+      </a>
+    </div>
+    <div class="nav-right">
+      <a href="whitepaper.html" class="nav-btn">Whitepaper</a>
+      <div id="wallet-balance-display" class="balance-badge hidden">
+        <span id="sol-balance">0.00</span> SOL
+      </div>
+      <a href="https://pump.fun/7RVWZavB2ufPhFxgFXNUWaX7uhTV1RtuapQHhhgspump" target="_blank" rel="noopener" class="nav-btn buy-btn">Buy $SOLPOT</a>
+      <div class="status-pill">
+        <span class="led" id="conn-dot"></span>
+        <span id="conn-text">Connecting...</span>
+      </div>
+      <button class="nav-btn wallet-btn" id="btn-wallet">
+        <span id="wallet-label">Connect Wallet</span>
+      </button>
+      <button class="nav-btn disconnect-btn hidden" id="btn-disconnect" title="Disconnect Wallet" style="padding: 10px; border-radius: 8px; background: rgba(255, 50, 50, 0.2); color: #ff6b6b; border: 1px solid rgba(255, 50, 50, 0.4); margin-left: 8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- ==================== VICTORY / DEFEAT MODAL ==================== -->
+    <div class="result-modal-overlay" id="result-modal" hidden>
+      <div class="result-modal-content card" id="result-content">
+        <h2 id="result-title"></h2>
+        <p id="result-message"></p>
+        <div id="result-amount" class="result-amount"></div>
+        <button class="nav-btn buy-btn" id="result-close-btn" style="margin-top:20px; width:100%; justify-content: center;">Continue to Next Round</button>
+      </div>
+    </div>
+
+    <!-- ==================== WALLET MODAL ==================== -->
+    <div class="wallet-modal-overlay" id="wallet-modal" hidden>
+      <div class="wallet-modal-content card">
+        <div class="wallet-modal-header">
+          <h3>Connect Wallet</h3>
+          <button class="wallet-close-btn" id="close-wallet-modal">✕</button>
+        </div>
+        <div class="wallet-list">
+          <button class="wallet-option" data-wallet="phantom">
+            <span>👻</span> <span>Phantom</span>
+          </button>
+          <button class="wallet-option" data-wallet="solflare">
+            <span>🔥</span> <span>Solflare</span>
+          </button>
+          <button class="wallet-option" data-wallet="backpack">
+            <span>🎒</span> <span>Backpack</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MUSIC PLAYER ==================== -->
+    <div class="music-player" id="music-player">
+      <div class="player-pulse-ring hidden" id="music-pulse"></div>
+      <button class="player-toggle-btn" id="music-toggle">🎵</button>
+      <div class="player-panel card open" id="music-panel">
+        <div class="player-info">
+          <video id="music-video" class="music-cover" muted loop playsinline></video>
+          <div class="track-details">
+            <div class="track-title" id="track-title">Loading...</div>
+            <div class="track-artist">SolPot Radio</div>
+          </div>
+        </div>
+        <div class="player-controls">
+          <button class="ctrl-btn" id="prev-track">⏮</button>
+          <button class="ctrl-btn play-btn" id="play-pause-track">▶</button>
+          <button class="ctrl-btn" id="next-track">⏭</button>
+        </div>
+        <div class="volume-control">
+          <span class="vol-icon">🔉</span>
+          <input type="range" id="music-volume" min="0" max="1" step="0.05" value="0.5" class="vol-slider">
+        </div>
+        <div class="playlist-container">
+          <div class="playlist-header">Playlist</div>
+          <ul id="playlist-list" class="playlist-list">
+            <!-- Dynamically populated by JS -->
+          </ul>
+        </div>
+      </div>
+      <audio id="audio-element"></audio>
+    </div>
+
+    <!-- ==================== HERO ==================== -->
+    <section class="hero">
+      <img src="solpot_horizontal.png" class="hero-logo-horizontal" alt="SOLPOT" />
+      <div class="hero-badge">LIVE ON SOLANA</div>
+      <h1 class="hero-h1">Last Bid <span class="gradient-text">Wins</span></h1>
+      <p class="hero-p">Place a bid. Reset the 60-second clock. When time runs out, the <strong>last bidder takes 85% of the entire pot</strong>. Every transaction verified on-chain via Solscan.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="stat-value" id="round-no">1</span>
+          <span class="stat-label">Round</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-value" id="unique-players">0</span><span class="stat-value dim">/2</span>
+          <span class="stat-label">Players</span>
+        </div>
+        <div class="hero-stat vip-stat">
+          <span class="stat-value gold" id="user-tickets-display">—</span>
+          <span class="stat-label">My Tickets</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== MAIN GAME GRID ==================== -->
+    <div class="game-grid">
+
+      <!-- CLOCK / TIMER — THE CENTERPIECE -->
+      <section class="card clock-card" id="clock-card">
+        <div class="clock-inner">
+          <div class="clock-top-label">JACKPOT (85%)</div>
+          <div class="clock-pot"><span id="pot">0.100</span> <small>SOL</small></div>
+          <div class="clock-pot-usd" id="pot-usd">≈ $14.55 USD</div>
+          <div class="clock-timer" id="clock">60.0</div>
+          <div class="clock-label" id="clock-label">WAITING FOR FIRST BID</div>
+          <div class="clock-sub" id="clock-sub">Jackpot seeded. First bid starts the 60-second clock!</div>
+          <div class="clock-progress-track">
+            <div class="clock-progress-fill" id="clock-fill"></div>
+          </div>
+        </div>
+        <!-- Leader strip -->
+        <div class="leader-strip">
+          <span class="leader-crown">👑</span>
+          <span class="leader-text" id="leader-addr">Waiting for first bid...</span>
+          <a class="leader-verify" id="leader-link" target="_blank" rel="noopener" hidden>Verify ↗</a>
+          <button class="leader-copy" id="copy-leader" title="Copy address">📋</button>
+        </div>
+
+        <!-- Min players notice -->
+        <div class="players-notice" id="players-notice">
+          ⏳ Minimum <strong>2 unique players</strong> required. Round auto-extends until 2nd player joins.
+        </div>
+
+        <div id="danger-zone-alert" class="danger-zone-alert hidden" style="margin-top: 10px;">
+          ⚠️ <b>DANGER ZONE:</b> Bids placed now may not confirm in time due to network lag!
+        </div>
+      </section>
+
+      <!-- SIDE POOLS -->
+      <div class="side-pools">
+        <!-- Ranking Pool -->
+        <div class="card pool-card">
+          <div class="pool-header">
+            <span class="pool-icon">🏆</span>
+            <div>
+              <h3>Ranking Pool</h3>
+              <span class="pool-pct">5% of every bid</span>
+            </div>
+          </div>
+          <div class="pool-amount"><span id="pool-pot">0.020</span> SOL</div>
+          <div class="pool-usd" id="pool-usd">≈ $2.91</div>
+          <p class="pool-desc">Distributed to the <strong>Top 10</strong> highest-volume bidders at round end. <strong style="color: var(--accent-1);">Paid in SOL.</strong></p>
+          <div class="draw-countdown" id="ranking-countdown" style="margin-top: 10px; font-weight: bold; color: var(--accent-1); font-size: 0.9rem;">Waiting for first round...</div>
+          <div class="ranking-table-wrap">
+            <table class="ranking-table">
+              <tbody id="ranking-body">
+                <tr><td colspan="4" class="empty-msg">No bids yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Holder Vault -->
+        <div class="card pool-card">
+          <div class="pool-header">
+            <span class="pool-icon">💎</span>
+            <div>
+              <h3>Holder Airdrop Vault</h3>
+              <span class="pool-pct">5% of every bid</span>
+            </div>
+          </div>
+          <div class="pool-amount purple"><span id="holder-pot">0.020</span> SOL</div>
+          <div class="pool-usd" id="holder-usd">≈ $2.91</div>
+          <p class="pool-sub"><strong>Daily airdrops</strong> for wallets holding $SOLPOT. <strong style="color: var(--accent-2);">Prizes paid in SOL.</strong></p>
+          <div class="draw-countdown" id="holder-countdown" style="margin-top: 10px; font-weight: bold; color: var(--accent-2); font-size: 0.9rem;">Waiting for first round...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- (Sudden Death Removed) -->
+
+    <!-- ==================== BID CONSOLE ==================== -->
+    <section class="card bid-console">
+      <div class="bid-console-header">
+        <div>
+          <h2>Place Your Bid</h2>
+          <p class="bid-console-sub">Min: <span id="min-bid">0.010</span> SOL <span class="muted" id="min-bid-usd"></span></p>
+        </div>
+        <div class="bid-edge-pill" id="bid-edge">Pot scaling up</div>
+      </div>
+
+      <div class="bid-controls">
+        <div class="bid-input-wrap">
+          <input type="number" id="input-bid-amount" step="0.005" min="0.010" value="0.010" class="bid-input" />
+          <div class="bid-presets">
+            <button class="btn-preset" data-add="0.005">+0.005</button>
+            <button class="btn-preset" data-add="0.010">+0.01</button>
+            <button class="btn-preset" data-add="0.050">+0.05</button>
+            <button class="btn-preset" data-add="0.100">+0.1</button>
+          </div>
+        </div>
+        <div class="bid-actions" style="justify-content: center;">
+          <button class="bid-main-btn" id="btn-bid" style="width: 100%; max-width: 400px; padding: 16px; font-size: 1.2rem;">Place Bid</button>
+        </div>
+      </div>
+
+      <div class="gate-bar" id="gate-status">
+        🔒 Hold <strong>10,000 $SOLPOT</strong> (1 Ticket) to play &nbsp;·&nbsp; <strong>100,000 $SOLPOT</strong> = VIP 25% discount
+      </div>
+    </section>
+
+    <!-- ==================== WINNER BANNERS ==================== -->
+    <section class="winner-banner" id="winner-card" hidden>
+      <div class="wb-title">🎉 Round <span id="win-round"></span> — Jackpot Winner!</div>
+      <div class="wb-addr" id="win-addr">...</div>
+      <div class="wb-amount"><span id="win-pot">0.000</span> SOL</div>
+      <a class="wb-link" id="win-tx-link" target="_blank" rel="noopener">Verify on Solscan ↗</a>
+    </section>
+
+    <section class="winner-banner holder-wb" id="holder-winner-card" hidden>
+      <div class="wb-title">💎 Holder Airdrop Winner!</div>
+      <div class="wb-addr" id="hwin-addr">...</div>
+      <div class="wb-amount purple"><span id="hwin-pot">0.000</span> SOL</div>
+      <div class="wb-info" id="hwin-tickets-info">...</div>
+      <a class="wb-link" id="hwin-tx-link" target="_blank" rel="noopener">Verify on Solscan ↗</a>
+    </section>
+
+    <!-- ==================== HOW IT WORKS ==================== -->
+    <section class="how-section">
+      <div class="how-header">
+        <span class="section-badge">TOKENOMICS</span>
+        <h2>How SolPot Works</h2>
+        <p>100% transparent. Every bid is split on-chain. <strong style="color: #14F195;">All prizes are paid instantly in $SOL (Solana)</strong>, not tokens.</p>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-card">
+          <div class="how-num green-bg">1</div>
+          <h3>Main Jackpot — 85%</h3>
+          <p>Every bid deposits 85% into the jackpot. Each bid resets the 60-second timer. Last bidder standing when the clock hits zero takes the entire pot.</p>
+        </div>
+        <div class="how-card">
+          <div class="how-num gold-bg">2</div>
+          <h3>Ranking Pool — 5%</h3>
+          <p>5% accumulates in a pool distributed to the <strong>Top 10 highest-volume bidders</strong> at round end. Bid more, earn more — even if you don't win the jackpot.</p>
+        </div>
+        <div class="how-card">
+          <div class="how-num purple-bg">3</div>
+          <h3>Holder Airdrop Vault — 5%</h3>
+          <p>5% goes to a daily raffle vault. Every <strong>10,000 $SOLPOT</strong> held &gt;24h = 1 raffle ticket. <strong>100k+ tokens = VIP</strong> (25% bid discount + 10x tickets).</p>
+        </div>
+        <div class="how-card">
+          <div class="how-num gray-bg">4</div>
+          <h3>Buy & Burn + Platform — 5%</h3>
+          <p><strong>1%</strong> of every pot is held until it hits 0.02 SOL, then it automatically triggers an on-chain <strong>Buy & Burn</strong> of $SOLPOT. The remaining <strong>4%</strong> goes to platform maintenance.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== THE INFINITE FOMO ENGINE ==================== -->
+    <section class="rules-panel">
+      <div class="rules-icon-col">
+        <div class="rules-shield">🔥</div>
+      </div>
+      <div class="rules-content">
+        <span class="section-badge red-badge">THE SNIPER WAR</span>
+        <h2>The Golden Rule</h2>
+        <p>There are no limits. The pot grows as long as players keep fighting, but the clock gets faster:</p>
+        <div class="rules-steps">
+          <div class="rule-step">
+            <div class="rule-num">1</div>
+            <div><strong>Decaying Timer.</strong> The first bid sets the clock to 60s. Every subsequent bid decreases the clock limit (from 60s down to a minimum of 10s). The war accelerates!</div>
+          </div>
+          <div class="rule-step">
+            <div class="rule-num">2</div>
+            <div><strong>No Maximum Pot.</strong> The jackpot scales infinitely until someone gives up.</div>
+          </div>
+          <div class="rule-step">
+            <div class="rule-num">3</div>
+            <div><strong>Last Bidder Wins.</strong> When the clock hits 00:00, the final bidder takes 85% of the pot.</div>
+          </div>
+          <div class="rule-step">
+            <div class="rule-num">4</div>
+            <div><strong>Minimum 2 players.</strong> A round only settles when at least 2 unique wallets have bid. No self-wins.</div>
+          </div>
+          <div class="rule-item">
+            <div class="rule-num">5</div>
+            <div><strong>The Golden Rule of Web3.</strong> Your transaction must be <i>confirmed</i> by the Solana network before the clock hits 00:00. Network lag is your responsibility. Bids confirmed after 00:00 roll over to the next round. Don't wait until the last second!</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== LIVE FEEDS ==================== -->
+    <div class="feeds-grid">
+      <section class="card">
+        <div class="feed-header">
+          <h3>⚡ Live Bids <span class="muted" id="bid-count"></span></h3>
+        </div>
+        <ul class="feed-list" id="bid-feed">
+          <li class="empty-msg">No bids yet this round.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <div class="feed-header">
+          <h3>🏆 Past Winners</h3>
+        </div>
+        <ul class="feed-list" id="winner-feed">
+          <li class="empty-msg">No rounds finished yet.</li>
+        </ul>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- ==================== BURN TOAST ==================== -->
+  <div class="burn-toast hidden" id="burn-toast">
+    <div class="burn-toast-icon">🔥</div>
+    <div class="burn-toast-content">
+      <div class="burn-toast-title">BUY & BURN EXECUTED!</div>
+      <div class="burn-toast-desc"><span id="burn-amount">...</span> $SOLPOT destroyed!</div>
+    </div>
+  </div>
+
+  <!-- ==================== FLOATING CHAT ==================== -->
+  <button class="chat-toggle-btn" id="chat-toggle-btn">💬 Chat</button>
+  <div class="floating-chat card" id="floating-chat" hidden>
+    <div class="chat-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <h3>Live Chat</h3>
+        <button id="btn-set-nickname" class="nickname-btn" title="Set Nickname">🏷️</button>
+      </div>
+      <button class="chat-close-btn" id="chat-close-btn">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Type a message..." maxlength="150" autocomplete="off" />
+      <button id="chat-send-btn">Send</button>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <span>SOLPOT © 2026 — 100% Provably Fair on Solana &nbsp;·&nbsp; All transactions verifiable on Solscan</span>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <script src="app.js?v=5"></script>
+</body>
+</html>

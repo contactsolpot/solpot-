@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whitepaper | SOLPOT</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    .docs-page {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px 80px;
+    }
+    .docs-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .docs-header h1 {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+    .docs-header p {
+      color: var(--text-2);
+      font-size: 1.1rem;
+    }
+    .docs-section {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 32px 40px;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.05);
+    }
+    .docs-section h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+    .docs-section h3 {
+      font-size: 1.2rem;
+      color: var(--cyan);
+      margin: 28px 0 12px;
+    }
+    .docs-section p, .docs-section li {
+      color: var(--text-2);
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+    .docs-section ul {
+      padding-left: 24px;
+      margin-bottom: 20px;
+    }
+    .docs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+    }
+    .docs-table th, .docs-table td {
+      text-align: left;
+      padding: 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .docs-table th {
+      color: var(--text);
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .docs-table td {
+      color: var(--text-2);
+    }
+    .docs-table strong {
+      color: var(--gold);
+    }
+    .highlight-box {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid var(--red);
+      padding: 16px 24px;
+      margin: 24px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .highlight-box p { margin: 0; color: #ffb3b3; }
+  </style>
+</head>
+<body>
+  <!-- Background effects inherited from body::before in styles.css -->
+
+  <header class="navbar">
+    <div class="nav-left">
+      <img src="solpot_square.png" class="brand-logo-img" alt="SolPot" />
+      <div class="brand-text">
+        <span class="brand-name">SOLPOT</span>
+        <span class="brand-sub">Whitepaper</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <a href="index.html" class="nav-btn">← Back to Game</a>
+      <a href="https://pump.fun/7RVWZavB2ufPhFxgFXNUWaX7uhTV1RtuapQHhhgspump" target="_blank" rel="noopener" class="nav-btn buy-btn">Buy $SOLPOT</a>
+    </div>
+  </header>
+
+  <main class="docs-page">
+    <div class="docs-header">
+      <div class="hero-badge">OFFICIAL DOCUMENTATION</div>
+      <h1>Whitepaper</h1>
+      <p>Complete mechanics, tokenomics, and fairness protocols.</p>
+    </div>
+
+    <section class="docs-section">
+      <h2>🎯 1. What is SOLPOT?</h2>
+      <p><strong>SOLPOT</strong> is a high-speed Web3 auction and jackpot game built natively on the <strong>Solana</strong> blockchain, based on the highly engaging <em>"Last Bid Wins"</em> mechanic.</p>
+      <p><strong>How it works:</strong> Players bid SOL into a central pot. Each bid resets a 60-second countdown timer. When the timer reaches zero, the last bidder wins 85% of the entire accumulated pot.</p>
+      <p>Unlike traditional opaque games, SOLPOT is <strong>100% Auditable and Provably Fair On-Chain</strong>. Every single bid, win, and draw has a direct link to Solscan, displaying the immutable transaction hashes on the blockchain.</p>
+    </section>
+
+    <section class="docs-section">
+      <h2>🧮 2. The Economy & Fee Split (85/5/5/5)</h2>
+      <p>Every bid placed in SOL is split mathematically and transparently to fuel the ecosystem:</p>
+      <table class="docs-table">
+        <thead>
+          <tr>
+            <th>Pool</th>
+            <th>Share</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🪙 <strong>Main Jackpot</strong></td>
+            <td><strong>85%</strong></td>
+            <td>Accumulated for the player who places the last bid when the timer reaches zero.</td>
+          </tr>
+          <tr>
+            <td>🏆 <strong>Ranking Pool</strong></td>
+            <td><strong>5%</strong></td>
+            <td>Automatically distributed at round end to the <strong>Top 10</strong> highest-volume bidders.</td>
+          </tr>
+          <tr>
+            <td>💎 <strong>Holder Vault</strong></td>
+            <td><strong>5%</strong></td>
+            <td>Accumulated in a vault raffled 2x daily among wallets holding $SOLPOT tokens.</td>
+          </tr>
+          <tr>
+            <td>⚙️ <strong>Platform Fee</strong></td>
+            <td><strong>5%</strong></td>
+            <td>Platform fee used for server maintenance, marketing, and development.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="docs-section">
+      <h2>🔑 3. Token Gate & VIP System</h2>
+      <h3>A. To Play</h3>
+      <ul>
+        <li>To participate in any round, the user must hold at least <strong>10,000 $SOLPOT</strong> in their connected wallet.</li>
+        <li><strong>10,000 $SOLPOT = 1 Raffle Ticket</strong> for the daily Holder Airdrop.</li>
+        <li>The more tokens held, the more Tickets accumulated (e.g., 50,000 tokens = 5 Tickets), proportionally increasing chances in the Holder draw.</li>
+      </ul>
+
+      <h3>B. VIP Status (25% Bid Discount)</h3>
+      <ul>
+        <li>Users holding <strong>100,000+ $SOLPOT</strong> automatically activate <strong>VIP Status</strong>.</li>
+        <li><strong>VIP Benefit:</strong> Receive a <strong>25% Discount</strong> on the minimum bid value in all rounds, giving a massive mathematical edge against standard players.</li>
+      </ul>
+    </section>
+
+    <section class="docs-section">
+          <h2 id="anti-loop">4. The Infinite FOMO Engine</h2>
+          <p>To maximize the jackpot potential and create extreme psychological tension, the game operates on an infinite timer mechanic:</p>
+          <ul>
+            <li><strong>Unlimited Resets:</strong> Every single bid placed resets the clock back to exactly 60 seconds. There is no maximum limit to how many times the clock can be reset.</li>
+            <li><strong>Infinite Pot Growth:</strong> As long as players keep bidding to stay in the lead, the pot will grow continuously without a cap.</li>
+            <li><strong>Last Man Standing:</strong> The round only ends when 60 full seconds pass without a single new bid. The last bidder standing takes 85% of the accumulated pot.</li>
+            <li><strong>Minimum 2 Players:</strong> To prevent self-wins, a round only settles if at least 2 unique wallets have participated. If the timer hits zero with only 1 player, it automatically extends by 60 seconds.</li>
+          </ul>
+      
+      <div class="highlight-box">
+        <p><strong>Minimum Players Rule:</strong> A round only settles if at least <strong>2 unique wallets</strong> have participated. You cannot win your own money back. If time expires with only 1 player, the clock auto-extends by 60 seconds.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
