@@ -252,29 +252,27 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
   }
 }
 
-async function executePayout(winnerAddress, totalPotSol, retries = 3) {
+async function executePayout(winnerAddress, potSolToPay, devFeeToPay, retries = 3) {
   try {
-    const lamports = Math.floor(totalPotSol * 1e9);
-    const winnerCut = Math.floor(lamports * 0.85);
-    const platformCut = Math.floor(lamports * 0.04); // Agora 4% vai pro Lucro
-    const buyBurnCut = Math.floor(lamports * 0.01);  // 1% vai pro Buy & Burn
-    const holderCut = Math.floor(lamports * 0.05);
+    const winnerLamports = Math.floor(potSolToPay * 1e9);
+    const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% do total (80% da devFee)
+    const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% do total (20% da devFee)
 
     // Verificar se a carteira tem saldo suficiente para o pagamento
     const balance = await solanaConnection.getBalance(SERVER_KEYPAIR.publicKey);
-    if (balance < lamports) {
+    if (balance < (winnerLamports + platformLamports)) {
       console.warn(`⚠️ Sem fundos na Mainnet (${balance/1e9} SOL). Fazendo Payout Simulado (Virtual).`);
       return null;
     }
 
     // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
-    gameState.buyBurnPoolSol += (buyBurnCut / 1e9);
+    gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
 
     // Transferir 85% pro Vencedor e 4% pra Plataforma (Lucro)
     // Os outros 11% (Holder Airdrop, Ranking e Buy&Burn) ficam guardados na carteira do servidor
     const transaction = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerCut }),
-      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformCut })
+      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports }),
+      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformLamports })
     );
 
     const sig = await sendAndConfirmTransaction(solanaConnection, transaction, [SERVER_KEYPAIR]);
@@ -431,6 +429,7 @@ setInterval(() => {
     if (gameState.leader) {
       const winner = gameState.leader.address;
       const potPrize = gameState.potSol;
+      const devFeeThisRound = gameState.devFeeSol;
       const bidCount = gameState.bidCount;
       const uniquePlayers = gameState.uniqueBidders.length;
       const winningBidSol = gameState.leader.amountSol;
@@ -438,10 +437,10 @@ setInterval(() => {
       // Bloqueia o relógio enquanto faz o payout assíncrono
       gameState.deadline = null;
 
-      // Registrar que o fundo do Airdrop cresceu
-      gameState.holderPoolSol += (gameState.potSol * 0.05);
+      // O Holder Pool (5%) e Ranking Pool (5%) já foram acumulados em cada bid. 
+      // Eles ficam retidos na carteira do servidor para distribuição semanal/manual/scripts.
 
-      executePayout(gameState.leader.address, gameState.potSol).then((payoutSig) => {
+      executePayout(gameState.leader.address, potPrize, devFeeThisRound).then((payoutSig) => {
         const roundSummary = {
           round: gameState.round, winner,
           winningBidSol,
@@ -462,6 +461,7 @@ setInterval(() => {
         // Prepare for next round
         gameState.round += 1;
         gameState.potSol = 0;
+        gameState.devFeeSol = 0; // Reseta a taxa da plataforma acumulada nesta rodada
         gameState.minBidSol = 0.005; // Reseta pro valor mínimo de 0.005 SOL
         gameState.roundSeconds = 60; // Volta o cronômetro pra 60s
         gameState.leader = null;

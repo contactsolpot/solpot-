@@ -117,7 +117,7 @@
     <section class="docs-section">
       <h2>🎯 1. What is SOLPOT?</h2>
       <p><strong>SOLPOT</strong> is a high-speed Web3 auction and jackpot game built natively on the <strong>Solana</strong> blockchain, based on the highly engaging <em>"Last Bid Wins"</em> mechanic.</p>
-      <p><strong>How it works:</strong> Players bid SOL into a central pot. Each bid resets a 60-second countdown timer. When the timer reaches zero, the last bidder wins 85% of the entire accumulated pot.</p>
+      <p><strong>How it works:</strong> Players bid SOL into a central pot. Each bid resets the countdown timer. To increase tension, the timer <strong>decays</strong>: it starts resetting to 60s, then 50s, 40s... all the way down to a brutal <strong>10-second</strong> reset per bid. When the timer reaches zero, the last bidder wins 85% of the entire accumulated pot.</p>
       <p>Unlike traditional opaque games, SOLPOT is <strong>100% Auditable and Provably Fair On-Chain</strong>. Every single bid, win, and draw has a direct link to Solscan, displaying the immutable transaction hashes on the blockchain.</p>
     </section>
 
@@ -150,11 +150,24 @@
           </tr>
           <tr>
             <td>⚙️ <strong>Platform Fee</strong></td>
-            <td><strong>5%</strong></td>
+            <td><strong>4%</strong></td>
             <td>Platform fee used for server maintenance, marketing, and development.</td>
+          </tr>
+          <tr>
+            <td>🔥 <strong>Buy & Burn</strong></td>
+            <td><strong>1%</strong></td>
+            <td>Automatically buys $SOLPOT from the market and burns it forever, creating deflation.</td>
           </tr>
         </tbody>
       </table>
+      
+      <h3>Public Transparency Wallets</h3>
+      <p>To ensure 100% transparency, you can track our vaults on the blockchain at any time:</p>
+      <ul>
+        <li><strong>Server Wallet (Game Engine):</strong> <code>BCw5qzMor6zmaPEQsDXndX56z7xfb1tQTU9nb2xa9Wnf</code></li>
+        <li><strong>Platform Vault (Fees):</strong> <code>8QDKaucXemPJXM8uVhLBGAzYSD6mAWKfvpnqFrqNrFk</code></li>
+        <li><strong>Community Holder Vault:</strong> <code>2sqdgJgtq8ce3q6ScmzAqYig2W5b8puAzV777e5Wiish</code></li>
+      </ul>
     </section>
 
     <section class="docs-section">
@@ -177,9 +190,9 @@
           <h2 id="anti-loop">4. The Infinite FOMO Engine</h2>
           <p>To maximize the jackpot potential and create extreme psychological tension, the game operates on an infinite timer mechanic:</p>
           <ul>
-            <li><strong>Unlimited Resets:</strong> Every single bid placed resets the clock back to exactly 60 seconds. There is no maximum limit to how many times the clock can be reset.</li>
+            <li><strong>Decaying Resets:</strong> Every single bid placed resets the clock. To prevent endless stalling, the reset time decays as the round progresses (60s → 50s → 40s → 30s → 20s → 10s). The final battles happen in brutal 10-second increments!</li>
             <li><strong>Infinite Pot Growth:</strong> As long as players keep bidding to stay in the lead, the pot will grow continuously without a cap.</li>
-            <li><strong>Last Man Standing:</strong> The round only ends when 60 full seconds pass without a single new bid. The last bidder standing takes 85% of the accumulated pot.</li>
+            <li><strong>Last Man Standing:</strong> The round only ends when the timer hits zero without a single new bid. The last bidder standing takes 85% of the accumulated pot.</li>
             <li><strong>Minimum 2 Players:</strong> To prevent self-wins, a round only settles if at least 2 unique wallets have participated. If the timer hits zero with only 1 player, it automatically extends by 60 seconds.</li>
           </ul>
       
