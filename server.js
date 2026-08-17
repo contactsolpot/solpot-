@@ -2,11 +2,38 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const bs58 = require('bs58').default || require('bs58');
 const { Connection, Keypair, PublicKey, SystemProgram, Transaction, VersionedTransaction, sendAndConfirmTransaction } = require('@solana/web3.js');
 const splToken = require('@solana/spl-token');
 
 const app = express();
+
+// ==================== SANITIZAÇÃO ====================
+function sanitizeText(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
+// ==================== PERSISTÊNCIA ====================
+const STATE_FILE = path.join(__dirname, 'gameState.json');
+function saveState() {
+  try { fs.writeFileSync(STATE_FILE, JSON.stringify(gameState, null, 2)); }
+  catch (e) { console.error('Erro ao salvar estado:', e.message); }
+}
+function loadState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const saved = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+      return saved;
+    }
+  } catch (e) { console.error('Erro ao carregar estado:', e.message); }
+  return null;
+}
+
+// ==================== TOKEN GATE CONFIG ====================
+// Colocar como true quando o token estiver lançado na Pump.fun
+const TOKEN_GATE_LIVE = process.env.TOKEN_GATE_LIVE === 'true' || false;
 
 // ==================== SOLANA CONFIG ====================
 let SERVER_KEYPAIR, PLATFORM_VAULT, HOLDER_VAULT, solanaConnection;
@@ -25,9 +52,9 @@ const PORT = process.env.PORT || 3000;
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000', 
-  'http://127.0.0.1:3000'
-  // TODO: Quando for para o ar, adicione seu domínio aqui. Exemplo:
-  // 'https://solpot.io', 'https://www.solpot.io'
+  'http://127.0.0.1:3000',
+  'https://thesolpot.fun',
+  'https://www.thesolpot.fun'
 ];
 
 app.use(cors({
@@ -74,6 +101,7 @@ const sampleWallets = [
 let gameState = {
   round: 1,
   potSol: 0,
+  luckyPoolSol: 0, // 5% Lucky Draw Raffle for round participants
   rankingPoolSol: 0,
   holderPoolSol: 0.02,
   buyBurnPoolSol: 0,
@@ -121,6 +149,7 @@ let gameState = {
   topBidders: {},
   history: [],
   lastWinner: null,
+  lastLuckyWinner: null, // { winner, prizeSol, round, time, sig }
   chatMessages: [
     { sender: 'System', text: 'Welcome to SOLPOT! Bids are live.', isSystem: true, time: Date.now() }
   ],
@@ -177,12 +206,22 @@ app.get('/api/stream', (req, res) => {
 app.get('/api/check-holder/:address', async (req, res) => {
   const { address } = req.params;
   
-  // Real Token Gate (Disabled temporarily since token doesn't exist yet)
-  // const balance = await solanaConnection.getTokenAccountBalance(new PublicKey(address)).catch(() => ({ value: { uiAmount: 0 } }));
-  // const tokenBalance = balance.value.uiAmount;
-  
-  // Fake token balance just so users can play before token launch
-  const tokenBalance = 120000;
+  let tokenBalance = 0;
+  if (TOKEN_GATE_LIVE) {
+    // Token Gate Real — busca saldo on-chain
+    try {
+      const mintPubkey = new PublicKey(gameState.token.mint);
+      const ownerPubkey = new PublicKey(address);
+      const ata = await splToken.getAssociatedTokenAddress(mintPubkey, ownerPubkey);
+      const balanceInfo = await solanaConnection.getTokenAccountBalance(ata);
+      tokenBalance = balanceInfo.value.uiAmount || 0;
+    } catch (e) {
+      tokenBalance = 0; // Wallet sem token account
+    }
+  } else {
+    // Pré-lançamento: todos podem jogar
+    tokenBalance = 120000;
+  }
   
   const tickets = Math.floor(tokenBalance / gameState.token.minRequired);
   const isVip = tokenBalance >= gameState.token.vipRequired;
@@ -191,10 +230,6 @@ app.get('/api/check-holder/:address', async (req, res) => {
 
 // ==================== RPC PROXY ====================
 // O navegador sofre bloqueio 403 da Solana Pública. O servidor atua como ponte.
-app.post('/api/trigger-holder-airdrop', async (req, res) => {
-  // Rota desativada para produção
-  res.status(403).json({ error: "Sorteios manuais desativados em produção." });
-});
 
 app.get('/api/rpc/balance/:address', async (req, res) => {
   try {
@@ -252,31 +287,40 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
   }
 }
 
-async function executePayout(winnerAddress, potSolToPay, devFeeToPay, retries = 3) {
+async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luckySolToPay, devFeeToPay, retries = 3) {
   try {
     const winnerLamports = Math.floor(potSolToPay * 1e9);
+    const luckyLamports = luckyWinnerAddress && luckySolToPay > 0 ? Math.floor(luckySolToPay * 1e9) : 0;
     const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% do total (80% da devFee)
     const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% do total (20% da devFee)
 
     // Verificar se a carteira tem saldo suficiente para o pagamento
     const balance = await solanaConnection.getBalance(SERVER_KEYPAIR.publicKey);
-    if (balance < (winnerLamports + platformLamports)) {
+    if (balance < (winnerLamports + luckyLamports + platformLamports)) {
       console.warn(`⚠️ Sem fundos na Mainnet (${balance/1e9} SOL). Fazendo Payout Simulado (Virtual).`);
-      return null;
+      return { winnerSig: null, luckySig: null };
     }
 
     // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
     gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
 
-    // Transferir 85% pro Vencedor e 4% pra Plataforma (Lucro)
-    // Os outros 11% (Holder Airdrop, Ranking e Buy&Burn) ficam guardados na carteira do servidor
+    // Transferir 80% pro Vencedor, 5% pro Sorteado da Rodada e 4% pra Plataforma (Lucro)
     const transaction = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports }),
+      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports })
+    );
+
+    if (luckyLamports > 0 && luckyWinnerAddress) {
+      transaction.add(
+        SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(luckyWinnerAddress), lamports: luckyLamports })
+      );
+    }
+
+    transaction.add(
       SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformLamports })
     );
 
     const sig = await sendAndConfirmTransaction(solanaConnection, transaction, [SERVER_KEYPAIR]);
-    console.log(`✅ Payout sent to ${winnerAddress}! Sig: ${sig}`);
+    console.log(`✅ Payout sent to Winner (${winnerAddress}) & Lucky Draw (${luckyWinnerAddress})! Sig: ${sig}`);
     
     // Disparar o Buy & Burn se atingiu o limite de 0.02 SOL
     if (gameState.buyBurnPoolSol >= 0.02) {
@@ -285,19 +329,34 @@ async function executePayout(winnerAddress, potSolToPay, devFeeToPay, retries = 
       executeBuyAndBurn(lamportsToSpend); // Roda em background
     }
 
-    return sig;
+    return { winnerSig: sig, luckySig: sig };
   } catch (err) {
     console.error("Execute Payout Error:", err);
-    return null;
+    return { winnerSig: null, luckySig: null };
   }
 }
 // ====================================================
 
 app.post('/api/bid', async (req, res) => {
-  const { address, amountSol, sig, blockhash, lastValidBlockHeight, tokenBalance } = req.body;
+  const { address, amountSol, sig, blockhash, lastValidBlockHeight } = req.body;
   if (!address || !amountSol) return res.status(400).json({ error: "Missing data" });
   
-  const currentBalance = tokenBalance !== undefined ? Number(tokenBalance) : 0;
+  // C1 FIX: Buscar saldo do token no SERVIDOR, nunca confiar no cliente
+  let currentBalance = 0;
+  if (TOKEN_GATE_LIVE) {
+    try {
+      const mintPubkey = new PublicKey(gameState.token.mint);
+      const ownerPubkey = new PublicKey(address);
+      const ata = await splToken.getAssociatedTokenAddress(mintPubkey, ownerPubkey);
+      const balanceInfo = await solanaConnection.getTokenAccountBalance(ata);
+      currentBalance = balanceInfo.value.uiAmount || 0;
+    } catch (e) {
+      currentBalance = 0;
+    }
+  } else {
+    currentBalance = 120000; // Pré-lançamento
+  }
+
   const userTickets = Math.floor(currentBalance / gameState.token.minRequired);
   const isVip = currentBalance >= gameState.token.vipRequired;
   const discountMultiplier = isVip ? (1 - gameState.token.vipDiscountPct / 100) : 1.0;
@@ -319,10 +378,13 @@ app.post('/api/bid', async (req, res) => {
 
   const txSig = sig;
 
-  gameState.potSol += bidAmount * 0.85;
-  gameState.rankingPoolSol += bidAmount * 0.05;
-  gameState.holderPoolSol += bidAmount * 0.05;
-  gameState.devFeeSol += bidAmount * 0.05;
+  // H3 FIX: Aritmética em lamports inteiros para evitar drift de ponto flutuante (80/5/5/5/5)
+  const bidLamports = Math.round(bidAmount * 1e9);
+  gameState.potSol = (gameState.potSol * 1e9 + Math.round(bidLamports * 0.80)) / 1e9;
+  gameState.luckyPoolSol = (gameState.luckyPoolSol * 1e9 + Math.round(bidLamports * 0.05)) / 1e9;
+  gameState.rankingPoolSol = (gameState.rankingPoolSol * 1e9 + Math.round(bidLamports * 0.05)) / 1e9;
+  gameState.holderPoolSol = (gameState.holderPoolSol * 1e9 + Math.round(bidLamports * 0.05)) / 1e9;
+  gameState.devFeeSol = (gameState.devFeeSol * 1e9 + Math.round(bidLamports * 0.05)) / 1e9;
 
   const now = Date.now();
 
@@ -361,6 +423,7 @@ app.post('/api/bid', async (req, res) => {
   gameState.minBidSol = Math.round((gameState.minBidSol + 0.001) * 1000) / 1000;
 
   broadcastState();
+  saveState(); // H4 FIX: Persistir estado após cada bid
 
   res.json({
     success: true,
@@ -398,9 +461,10 @@ app.post('/api/chat', (req, res) => {
   
   const displaySender = gameState.nicknames[sender] || sender || 'Anonymous';
   
+  // C3 FIX: Sanitizar texto contra XSS no lado do servidor
   const msg = {
-    sender: displaySender,
-    text: text.trim().substring(0, 150), // max 150 chars
+    sender: sanitizeText(displaySender),
+    text: sanitizeText(text.trim().substring(0, 150)),
     isVip: !!isVip,
     isSystem: false,
     time: Date.now()
@@ -429,28 +493,59 @@ setInterval(() => {
     if (gameState.leader) {
       const winner = gameState.leader.address;
       const potPrize = gameState.potSol;
+      const luckyPrize = gameState.luckyPoolSol;
       const devFeeThisRound = gameState.devFeeSol;
       const bidCount = gameState.bidCount;
       const uniquePlayers = gameState.uniqueBidders.length;
       const winningBidSol = gameState.leader.amountSol;
       
+      // Sorteio da Rodada (Lucky Draw): escolher entre quem deu lance exceto o vencedor principal
+      const candidateBids = gameState.bids.filter(b => b.address !== winner);
+      const luckyWinner = candidateBids.length > 0
+        ? candidateBids[Math.floor(Math.random() * candidateBids.length)].address
+        : (gameState.uniqueBidders.find(a => a !== winner) || winner);
+      
       // Bloqueia o relógio enquanto faz o payout assíncrono
       gameState.deadline = null;
 
-      // O Holder Pool (5%) e Ranking Pool (5%) já foram acumulados em cada bid. 
-      // Eles ficam retidos na carteira do servidor para distribuição semanal/manual/scripts.
+      executePayout(winner, potPrize, luckyWinner, luckyPrize, devFeeThisRound).then((payoutRes) => {
+        const winnerSig = payoutRes.winnerSig || generateTxSig();
+        const luckySig = payoutRes.luckySig || generateTxSig();
 
-      executePayout(gameState.leader.address, potPrize, devFeeThisRound).then((payoutSig) => {
         const roundSummary = {
-          round: gameState.round, winner,
+          round: gameState.round,
+          winner,
           winningBidSol,
-          potSol: potPrize, bidCount,
+          potSol: potPrize,
+          luckyWinner: {
+            address: luckyWinner,
+            prizeSol: luckyPrize,
+            sig: luckySig
+          },
+          bidCount,
           uniquePlayers,
-          endedAt: Date.now(), paid: true, 
-          payoutSig: payoutSig || generateTxSig() // Fallback visual se a devnet falhar
+          endedAt: Date.now(),
+          paid: true, 
+          payoutSig: winnerSig
         };
+        
         gameState.history.unshift(roundSummary);
         gameState.lastWinner = roundSummary;
+        gameState.lastLuckyWinner = {
+          winner: luckyWinner,
+          prizeSol: luckyPrize,
+          round: gameState.round,
+          drawnAt: Date.now(),
+          sig: luckySig
+        };
+
+        // Adicionar mensagem no chat comemorando ambos
+        gameState.chatMessages.push({
+          sender: 'SYSTEM',
+          text: `👑 Round #${gameState.round} Won by ${winner.slice(0,4)}...${winner.slice(-4)} (${potPrize.toFixed(3)} SOL)! 🎲 Lucky Draw won by ${luckyWinner.slice(0,4)}...${luckyWinner.slice(-4)} (+${luckyPrize.toFixed(3)} SOL)!`,
+          isSystem: true,
+          time: Date.now()
+        });
 
         // Se foi a primeira rodada, inicia os relógios dos sorteios longos
         if (gameState.round === 1) {
@@ -461,6 +556,7 @@ setInterval(() => {
         // Prepare for next round
         gameState.round += 1;
         gameState.potSol = 0;
+        gameState.luckyPoolSol = 0;
         gameState.devFeeSol = 0; // Reseta a taxa da plataforma acumulada nesta rodada
         gameState.minBidSol = 0.005; // Reseta pro valor mínimo de 0.005 SOL
         gameState.roundSeconds = 60; // Volta o cronômetro pra 60s
@@ -469,6 +565,7 @@ setInterval(() => {
         gameState.bidCount = 0;
         gameState.uniqueBidders = [];
         gameState.topBidders = {};
+        saveState(); // H4 FIX: Persistir estado após cada rodada
         broadcastState();
       });
       return; // O broadcastState ocorrerá no callback do executePayout
@@ -482,13 +579,26 @@ setInterval(() => {
 }, 500);
 
 app.listen(PORT, () => {
+  // H4 FIX: Carregar estado salvo se existir
+  const saved = loadState();
+  if (saved) {
+    Object.assign(gameState, saved);
+    // Resetar campos transientes
+    gameState.deadline = null;
+    gameState.health.lastReadAt = Date.now();
+    console.log(`📂 Estado restaurado! Rodada ${gameState.round}, Pote: ${gameState.potSol} SOL`);
+  }
   console.log(`====================================================`);
   console.log(`  SolPot — Server Active on Port ${PORT}`);
+  console.log(`  Token Gate: ${TOKEN_GATE_LIVE ? '🟢 LIVE (On-Chain)' : '🟡 PRE-LAUNCH (Bypass)'}`);
   console.log(`  Ranking: Top ${RANKING_TOP_N} Bidders`);
   console.log(`  Min Players to Settle: ${MIN_UNIQUE_BIDDERS} unique wallets`);
   console.log(`  http://localhost:${PORT}`);
   console.log(`====================================================`);
 });
+
+// H4 FIX: Auto-salvar estado a cada 30 segundos
+setInterval(saveState, 30000);
 
 // ==================== BUY & BURN (JUPITER API) ====================
 async function executeBuyAndBurn(lamportsToSpend) {

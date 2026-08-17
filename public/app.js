@@ -3,8 +3,18 @@ const $ = (id) => document.getElementById(id);
 let state = null;
 let skew = 0;
 let walletAddress = null;
+let activeProvider = null;
 
 // ---------------------------------------------------------------- Helpers
+function escapeHtml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 const short = (addr) => (addr && addr.length > 12 ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : addr || '');
 const sol = (n, dp = 3) => Number(n || 0).toFixed(dp);
 
@@ -219,6 +229,11 @@ function render() {
   $('pot').textContent = sol(state.potSol);
   $('pot-usd').textContent = usd(state.potSol);
 
+  const lp = $('lucky-pot');
+  if (lp) lp.textContent = sol(state.luckyPoolSol);
+  const lu = $('lucky-usd');
+  if (lu) lu.textContent = usd(state.luckyPoolSol);
+
   const pp = $('pool-pot');
   if (pp) pp.textContent = sol(state.rankingPoolSol);
   const pu = $('pool-usd');
@@ -265,6 +280,21 @@ function render() {
     wc.hidden = false;
   } else {
     wc.hidden = true;
+  }
+
+  // Lucky draw winner banner
+  const lw = state.lastLuckyWinner;
+  const lwc = $('lucky-winner-card');
+  if (lwc) {
+    if (lw && Date.now() + skew - lw.drawnAt < (state.celebrateMs || 60000)) {
+      $('lwin-round').textContent = lw.round;
+      $('lwin-addr').textContent = lw.winner;
+      $('lwin-pot').textContent = sol(lw.prizeSol);
+      $('lwin-tx-link').href = `https://solscan.io/tx/${lw.sig}`;
+      lwc.hidden = false;
+    } else {
+      lwc.hidden = true;
+    }
   }
 
   // Holder airdrop winner
@@ -347,6 +377,7 @@ function renderWinners() {
     <span class="f-right">
       <span style="color:var(--gold);font-weight:800;font-size:0.7rem;">PAID</span>
       <span class="f-amt">${sol(h.potSol)} SOL</span>
+      ${h.luckyWinner ? `<span style="color:var(--cyan);font-weight:700;font-size:0.75rem;" title="Lucky Draw Winner: ${h.luckyWinner.address}">🎲 +${sol(h.luckyWinner.prizeSol)}</span>` : ''}
       <span class="f-time">${ago(h.endedAt)}</span>
     </span>
   </li>`).join('');
@@ -399,11 +430,11 @@ function renderChat() {
   
   container.innerHTML = state.chatMessages.map(m => {
     if (m.isSystem) {
-      return `<div class="chat-msg sys-msg"><span class="sender sys">[System]</span><span class="text">${m.text}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
+      return `<div class="chat-msg sys-msg"><span class="sender sys">[System]</span><span class="text">${escapeHtml(m.text)}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
     }
     const vipCls = m.isVip ? 'vip' : '';
     const vipBadge = m.isVip ? ' 👑' : '';
-    return `<div class="chat-msg"><span class="sender ${vipCls}">${short(m.sender)}${vipBadge}:</span><span class="text">${m.text}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
+    return `<div class="chat-msg"><span class="sender ${vipCls}">${escapeHtml(short(m.sender))}${vipBadge}:</span><span class="text">${escapeHtml(m.text)}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
   }).join('');
   
   // Auto-scroll só se o usuário já estava no final do chat
@@ -519,37 +550,8 @@ async function triggerHolderAirdrop() {
   } catch { toast('Server error'); }
 }
 
-const btnBid = $('btn-bid');
-if (btnBid) btnBid.onclick = () => sendBid(false);
-
-const btnSimBid = $('btn-sim-bid');
-if (btnSimBid) btnSimBid.onclick = () => sendBid(true);
-
 const btnDrawHolder = $('btn-draw-holder');
 if (btnDrawHolder) btnDrawHolder.onclick = triggerHolderAirdrop;
-
-const airdropBtn = $('btn-airdrop');
-if (airdropBtn) {
-  airdropBtn.onclick = async (e) => {
-    e.preventDefault();
-    if (!walletAddress) { toast('Connect your wallet first!'); return; }
-    try {
-      toast('Requesting 2 SOL from Devnet...');
-      const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
-      const pubkey = new solanaWeb3.PublicKey(walletAddress);
-      const signature = await connection.requestAirdrop(pubkey, 2 * 1e9);
-      
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight });
-      
-      toast('Airdrop successful! Check your wallet.');
-      fetchWalletBalance(walletAddress);
-    } catch(err) {
-      console.error("Airdrop error:", err);
-      toast('Airdrop failed! Devnet might be rate-limiting.');
-    }
-  };
-}
 
 document.querySelectorAll('.btn-preset').forEach((btn) => {
   btn.onclick = () => {
@@ -751,31 +753,47 @@ function showRoundResult(winnerData) {
   modal.hidden = false;
   content.className = 'result-modal-content card'; // reset classes
   
-  if (walletAddress && winnerData.winner === walletAddress) {
-    // Victory
+  const isMainWinner = walletAddress && winnerData.winner === walletAddress;
+  const isLuckyWinner = walletAddress && winnerData.luckyWinner?.address === walletAddress;
+
+  if (isMainWinner) {
+    // Main Jackpot Victory
     content.classList.add('victory');
-    title.innerHTML = '🎉 YOU WON!';
-    msg.textContent = 'Congratulations! The pot is yours. Payout is being processed directly to your wallet via on-chain smart contract.';
+    title.innerHTML = '🎉 YOU WON THE JACKPOT!';
+    msg.textContent = 'Incredible! You were the last bidder standing. Payout is being processed directly to your wallet via on-chain smart contract.';
     amt.textContent = `+${Number(winnerData.potSol || 0).toFixed(3)} SOL`;
     amt.hidden = false;
     
     // Victory effects
-    new Audio('/victory.mp3').play().catch(e => console.log('Place victory.mp3 in public folder'));
+    new Audio('/victory.mp3').play().catch(() => {});
     const clockPanel = document.querySelector('.clock-panel');
-    if(clockPanel) {
+    if (clockPanel) {
       clockPanel.classList.add('timer-flash-green');
       setTimeout(() => clockPanel.classList.remove('timer-flash-green'), 3000);
     }
+  } else if (isLuckyWinner) {
+    // Lucky Draw Victory
+    content.classList.add('lucky-victory');
+    title.innerHTML = '🎲 YOU WON THE LUCKY DRAW!';
+    msg.textContent = 'Fortune smiled upon you! Your wallet was drawn in the Round Raffle consolation prize!';
+    amt.textContent = `+${Number(winnerData.luckyWinner?.prizeSol || 0).toFixed(3)} SOL`;
+    amt.style.color = 'var(--cyan)';
+    amt.hidden = false;
     
+    // Lucky Victory effects
+    new Audio('/victory.mp3').play().catch(() => {});
+    document.body.classList.add('screen-flash-cyan');
+    setTimeout(() => document.body.classList.remove('screen-flash-cyan'), 3000);
   } else {
     // Defeat
     content.classList.add('defeat');
     title.innerHTML = '💀 ROUND ENDED';
-    msg.textContent = `You lost this one. The pot of ${Number(winnerData.potSol || 0).toFixed(3)} SOL was swept by ${short(winnerData.winner)}.`;
+    const luckyMsg = winnerData.luckyWinner ? ` and ${short(winnerData.luckyWinner.address)} won the 🎲 Lucky Draw (+${Number(winnerData.luckyWinner.prizeSol || 0).toFixed(3)} SOL)` : '';
+    msg.textContent = `The jackpot of ${Number(winnerData.potSol || 0).toFixed(3)} SOL was swept by ${short(winnerData.winner)}${luckyMsg}. Better luck next round!`;
     amt.hidden = true;
     
     // Defeat effects
-    new Audio('/defeat.mp3').play().catch(e => console.log('Place defeat.mp3 in public folder'));
+    new Audio('/defeat.mp3').play().catch(() => {});
     document.body.classList.add('screen-flash-red');
     setTimeout(() => document.body.classList.remove('screen-flash-red'), 2000);
   }

@@ -126,7 +126,7 @@
       <img src="solpot_horizontal.png" class="hero-logo-horizontal" alt="SOLPOT" />
       <div class="hero-badge">LIVE ON SOLANA</div>
       <h1 class="hero-h1">Last Bid <span class="gradient-text">Wins</span></h1>
-      <p class="hero-p">Place a bid. Reset the 60-second clock. When time runs out, the <strong>last bidder takes 85% of the entire pot</strong>. Every transaction verified on-chain via Solscan.</p>
+      <p class="hero-p">Place a bid. Reset the clock. When time runs out, the <strong>last bidder takes 80%</strong> and a <strong>lucky bidder wins 5%</strong>. Every transaction verified on-chain via Solscan.</p>
       <div class="hero-stats">
         <div class="hero-stat">
           <span class="stat-value" id="round-no">1</span>
@@ -149,9 +149,9 @@
       <!-- CLOCK / TIMER — THE CENTERPIECE -->
       <section class="card clock-card" id="clock-card">
         <div class="clock-inner">
-          <div class="clock-top-label">JACKPOT (85%)</div>
-          <div class="clock-pot"><span id="pot">0.100</span> <small>SOL</small></div>
-          <div class="clock-pot-usd" id="pot-usd">≈ $14.55 USD</div>
+          <div class="clock-top-label">JACKPOT (80%)</div>
+          <div class="clock-pot"><span id="pot">0.000</span> <small>SOL</small></div>
+          <div class="clock-pot-usd" id="pot-usd">≈ $0.00 USD</div>
           <div class="clock-timer" id="clock">60.0</div>
           <div class="clock-label" id="clock-label">WAITING FOR FIRST BID</div>
           <div class="clock-sub" id="clock-sub">Jackpot seeded. First bid starts the 60-second clock!</div>
@@ -179,19 +179,33 @@
 
       <!-- SIDE POOLS -->
       <div class="side-pools">
+        <!-- Lucky Draw Pool (Round Raffle) -->
+        <div class="card pool-card lucky-pool-card">
+          <div class="pool-header">
+            <span class="pool-icon">🎲</span>
+            <div>
+              <h3>Lucky Draw (5%)</h3>
+              <span class="pool-pct">Raffled each round</span>
+            </div>
+          </div>
+          <div class="pool-amount cyan"><span id="lucky-pot">0.000</span> SOL</div>
+          <div class="pool-usd" id="lucky-usd">≈ $0.00</div>
+          <p class="pool-desc">Every bid is a ticket! 1 random bidder <strong>instantly wins 5%</strong> at round end.</p>
+        </div>
+
         <!-- Ranking Pool -->
         <div class="card pool-card">
           <div class="pool-header">
             <span class="pool-icon">🏆</span>
             <div>
-              <h3>Ranking Pool</h3>
-              <span class="pool-pct">5% of every bid</span>
+              <h3>Ranking Pool (5%)</h3>
+              <span class="pool-pct">Top 10 highest-volume</span>
             </div>
           </div>
-          <div class="pool-amount"><span id="pool-pot">0.020</span> SOL</div>
-          <div class="pool-usd" id="pool-usd">≈ $2.91</div>
-          <p class="pool-desc">Distributed to the <strong>Top 10</strong> highest-volume bidders at round end. <strong style="color: var(--accent-1);">Paid in SOL.</strong></p>
-          <div class="draw-countdown" id="ranking-countdown" style="margin-top: 10px; font-weight: bold; color: var(--accent-1); font-size: 0.9rem;">Waiting for first round...</div>
+          <div class="pool-amount"><span id="pool-pot">0.000</span> SOL</div>
+          <div class="pool-usd" id="pool-usd">≈ $0.00</div>
+          <p class="pool-desc">Distributed to the <strong>Top 10</strong> highest-volume bidders. <strong style="color: var(--accent-1);">Paid in SOL.</strong></p>
+          <div class="draw-countdown" id="ranking-countdown" style="margin-top: 6px; font-weight: bold; color: var(--accent-1); font-size: 0.85rem;">Waiting for first round...</div>
           <div class="ranking-table-wrap">
             <table class="ranking-table">
               <tbody id="ranking-body">
@@ -206,34 +220,32 @@
           <div class="pool-header">
             <span class="pool-icon">💎</span>
             <div>
-              <h3>Holder Airdrop Vault</h3>
-              <span class="pool-pct">5% of every bid</span>
+              <h3>Holder Vault (5%)</h3>
+              <span class="pool-pct">Daily $SOLPOT airdrops</span>
             </div>
           </div>
-          <div class="pool-amount purple"><span id="holder-pot">0.020</span> SOL</div>
-          <div class="pool-usd" id="holder-usd">≈ $2.91</div>
+          <div class="pool-amount purple"><span id="holder-pot">0.000</span> SOL</div>
+          <div class="pool-usd" id="holder-usd">≈ $0.00</div>
           <p class="pool-sub"><strong>Daily airdrops</strong> for wallets holding $SOLPOT. <strong style="color: var(--accent-2);">Prizes paid in SOL.</strong></p>
-          <div class="draw-countdown" id="holder-countdown" style="margin-top: 10px; font-weight: bold; color: var(--accent-2); font-size: 0.9rem;">Waiting for first round...</div>
+          <div class="draw-countdown" id="holder-countdown" style="margin-top: 6px; font-weight: bold; color: var(--accent-2); font-size: 0.85rem;">Waiting for first round...</div>
         </div>
       </div>
 
     </div>
-
-    <!-- (Sudden Death Removed) -->
 
     <!-- ==================== BID CONSOLE ==================== -->
     <section class="card bid-console">
       <div class="bid-console-header">
         <div>
           <h2>Place Your Bid</h2>
-          <p class="bid-console-sub">Min: <span id="min-bid">0.010</span> SOL <span class="muted" id="min-bid-usd"></span></p>
+          <p class="bid-console-sub">Min: <span id="min-bid">0.005</span> SOL <span class="muted" id="min-bid-usd"></span></p>
         </div>
         <div class="bid-edge-pill" id="bid-edge">Pot scaling up</div>
       </div>
 
       <div class="bid-controls">
         <div class="bid-input-wrap">
-          <input type="number" id="input-bid-amount" step="0.005" min="0.010" value="0.010" class="bid-input" />
+          <input type="number" id="input-bid-amount" step="0.005" min="0.005" value="0.005" class="bid-input" />
           <div class="bid-presets">
             <button class="btn-preset" data-add="0.005">+0.005</button>
             <button class="btn-preset" data-add="0.010">+0.01</button>
@@ -259,6 +271,14 @@
       <a class="wb-link" id="win-tx-link" target="_blank" rel="noopener">Verify on Solscan ↗</a>
     </section>
 
+    <section class="winner-banner lucky-wb" id="lucky-winner-card" hidden>
+      <div class="wb-title">🎲 Round <span id="lwin-round"></span> — Lucky Draw Winner!</div>
+      <div class="wb-addr" id="lwin-addr">...</div>
+      <div class="wb-amount cyan"><span id="lwin-pot">0.000</span> SOL</div>
+      <div class="wb-info">Randomly drawn among all round participants!</div>
+      <a class="wb-link cyan-link" id="lwin-tx-link" target="_blank" rel="noopener">Verify on Solscan ↗</a>
+    </section>
+
     <section class="winner-banner holder-wb" id="holder-winner-card" hidden>
       <div class="wb-title">💎 Holder Airdrop Winner!</div>
       <div class="wb-addr" id="hwin-addr">...</div>
@@ -278,23 +298,28 @@
       <div class="how-grid">
         <div class="how-card">
           <div class="how-num green-bg">1</div>
-          <h3>Main Jackpot — 85%</h3>
-          <p>Every bid deposits 85% into the jackpot. Each bid resets the 60-second timer. Last bidder standing when the clock hits zero takes the entire pot.</p>
+          <h3>Main Jackpot — 80%</h3>
+          <p>80% deposits into the main pot. Each bid resets the clock. Last bidder standing when time hits zero wins the main pot.</p>
         </div>
         <div class="how-card">
-          <div class="how-num gold-bg">2</div>
+          <div class="how-num cyan-bg">2</div>
+          <h3>Lucky Draw — 5%</h3>
+          <p>Every bid is a lottery ticket. When the round settles, <strong>5% is instantly raffled</strong> to a random participant as a consolation prize!</p>
+        </div>
+        <div class="how-card">
+          <div class="how-num gold-bg">3</div>
           <h3>Ranking Pool — 5%</h3>
-          <p>5% accumulates in a pool distributed to the <strong>Top 10 highest-volume bidders</strong> at round end. Bid more, earn more — even if you don't win the jackpot.</p>
+          <p>Accumulates in a pool distributed to the <strong>Top 10 highest-volume bidders</strong>. Bid more, earn more — even without winning the jackpot.</p>
         </div>
         <div class="how-card">
-          <div class="how-num purple-bg">3</div>
-          <h3>Holder Airdrop Vault — 5%</h3>
-          <p>5% goes to a daily raffle vault. Every <strong>10,000 $SOLPOT</strong> held &gt;24h = 1 raffle ticket. <strong>100k+ tokens = VIP</strong> (25% bid discount + 10x tickets).</p>
+          <div class="how-num purple-bg">4</div>
+          <h3>Holder Vault — 5%</h3>
+          <p>5% goes to a daily raffle vault. Every <strong>10,000 $SOLPOT</strong> held &gt;24h = 1 raffle ticket. <strong>100k+ tokens = VIP</strong> (25% discount).</p>
         </div>
         <div class="how-card">
-          <div class="how-num gray-bg">4</div>
+          <div class="how-num gray-bg">5</div>
           <h3>Buy & Burn + Platform — 5%</h3>
-          <p><strong>1%</strong> of every pot is held until it hits 0.02 SOL, then it automatically triggers an on-chain <strong>Buy & Burn</strong> of $SOLPOT. The remaining <strong>4%</strong> goes to platform maintenance.</p>
+          <p><strong>1%</strong> triggers an on-chain <strong>Buy & Burn</strong> of $SOLPOT once reaching 0.02 SOL. The remaining <strong>4%</strong> maintains the platform.</p>
         </div>
       </div>
     </section>
