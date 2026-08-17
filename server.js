@@ -219,7 +219,16 @@ app.get('/api/stream', (req, res) => {
   req.on('close', () => { sseClients = sseClients.filter((c) => c.id !== clientId); });
 });
 
-// ==================== ENDPOINTS DE AUDITORIA ====================
+// ==================== ENDPOINTS DE AUDITORIA E VERSÃO ====================
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: '1.2.0',
+    buildName: 'Lucky Draw & Multi-RPC Engine',
+    releaseDate: '2026-08-17',
+    features: ['80/5/5/5/4/1 Economy', 'Lucky Draw 5%', 'Multi-RPC Fallback', 'Append-only Audit Log']
+  });
+});
+
 app.get('/api/audit/rounds', (req, res) => {
   try {
     if (fs.existsSync(AUDIT_FILE)) {
