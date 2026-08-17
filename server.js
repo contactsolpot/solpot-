@@ -259,7 +259,7 @@ function verifyAdmin(req) {
 }
 
 app.get('/api/admin/overview', async (req, res) => {
-  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado: Chave de Admin inválida.' });
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Access Denied: Invalid Admin Secret Key.' });
 
   try {
     let serverBal = 0, platformBal = 0, holderBal = 0;
@@ -268,10 +268,10 @@ app.get('/api/admin/overview', async (req, res) => {
       if (PLATFORM_VAULT) platformBal = (await solanaConnection.getBalance(PLATFORM_VAULT)) / 1e9;
       if (HOLDER_VAULT) holderBal = (await solanaConnection.getBalance(HOLDER_VAULT)) / 1e9;
     } catch (e) {
-      console.warn('Erro ao consultar saldos on-chain no admin:', e.message);
+      console.warn('Error querying on-chain balances for admin:', e.message);
     }
 
-    // Calcular estatísticas cumulativas
+    // Cumulative stats calculation
     let totalRounds = 0;
     let totalVolumeSol = 0;
     let totalPlatformFeesEarnedSol = 0;
@@ -319,40 +319,40 @@ app.get('/api/admin/overview', async (req, res) => {
 });
 
 app.post('/api/admin/clear-chat', (req, res) => {
-  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Access Denied.' });
   gameState.chatMessages = [
-    { sender: 'SYSTEM', text: 'Chat limpo pelo Administrador.', isSystem: true, time: Date.now() }
+    { sender: 'SYSTEM', text: 'Chat cleared by Administrator.', isSystem: true, time: Date.now() }
   ];
   broadcastState();
-  logSystemEvent('CHAT_CLEARED', 'Chat limpo pelo Administrador');
-  res.json({ success: true, message: 'Chat limpo com sucesso.' });
+  logSystemEvent('CHAT_CLEARED', 'Chat cleared by Administrator');
+  res.json({ success: true, message: 'Chat cleared successfully.' });
 });
 
 app.post('/api/admin/clear-errors', (req, res) => {
-  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Access Denied.' });
   systemEvents = systemEvents.filter(e => !e.isError);
   try { fs.writeFileSync(SYSTEM_EVENTS_FILE, JSON.stringify(systemEvents, null, 2)); } catch {}
-  res.json({ success: true, message: 'Erros limpos com sucesso.' });
+  res.json({ success: true, message: 'Error logs cleared successfully.' });
 });
 
-// 🚨 EMERGENCY KILLSWITCH / PAUSA ADMINISTRATIVA
+// 🚨 EMERGENCY KILLSWITCH / ADMINISTRATIVE PAUSE
 app.post('/api/admin/toggle-pause', (req, res) => {
-  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Access Denied.' });
   
   gameState.isPaused = !gameState.isPaused;
-  gameState.pauseReason = gameState.isPaused ? (req.body?.reason || 'Manutenção Técnica Preventiva') : '';
+  gameState.pauseReason = gameState.isPaused ? (req.body?.reason || 'Scheduled Maintenance') : '';
 
-  // Notificar no chat
+  // Broadcast in chat
   gameState.chatMessages.push({
-    sender: '🚨 SISTEMA',
-    text: gameState.isPaused ? `⚠️ O JOGO FOI PAUSADO PELA ADMINISTRAÇÃO: ${gameState.pauseReason}. Seus fundos e lances estão 100% seguros.` : `🟢 O JOGO FOI RETOMADO! Que vença o melhor sniper!`,
+    sender: '🚨 SYSTEM',
+    text: gameState.isPaused ? `⚠️ ARENA TEMPORARILY PAUSED: ${gameState.pauseReason}. All bids & funds are 100% safe.` : `🟢 ARENA RESUMED! May the best sniper win!`,
     isSystem: true,
     time: Date.now()
   });
 
   logSystemEvent(
     gameState.isPaused ? 'EMERGENCY_PAUSE_ENABLED' : 'EMERGENCY_PAUSE_DISABLED',
-    gameState.isPaused ? `🚨 Jogo PAUSADO pelo administrador: ${gameState.pauseReason}` : `🟢 Jogo DESPAUSADO pelo administrador.`,
+    gameState.isPaused ? `🚨 Game PAUSED by admin: ${gameState.pauseReason}` : `🟢 Game RESUMED by admin.`,
     { isPaused: gameState.isPaused },
     gameState.isPaused
   );
@@ -363,7 +363,7 @@ app.post('/api/admin/toggle-pause', (req, res) => {
   res.json({
     success: true,
     isPaused: gameState.isPaused,
-    message: gameState.isPaused ? '🚨 Jogo pausado com sucesso! Lances bloqueados.' : '🟢 Jogo retomado com sucesso!'
+    message: gameState.isPaused ? '🚨 Game paused successfully! Bids locked.' : '🟢 Game resumed successfully!'
   });
 });
 
@@ -431,35 +431,35 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
     const tx = await solanaConnection.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
     if (!tx || tx.meta.err) {
       console.error("Tx failed or not found. Err:", tx?.meta?.err);
-      logSystemEvent('BID_TX_FAIL', 'Transação do lance falhou ou não foi encontrada na Solana', { sig, err: tx?.meta?.err }, true);
+      logSystemEvent('BID_TX_FAIL', 'Bid transaction failed or was not found on Solana', { sig, err: tx?.meta?.err }, true);
       return false;
     }
 
-    // Achar a index da carteira do Servidor no array de chaves
+    // Find server wallet index
     const serverIndex = tx.transaction.message.staticAccountKeys.findIndex(k => k.equals(SERVER_KEYPAIR.publicKey));
     if (serverIndex === -1) {
-      logSystemEvent('BID_INVALID_RECIPIENT', 'Transação não enviou fundos para a carteira do jogo', { sig }, true);
+      logSystemEvent('BID_INVALID_RECIPIENT', 'Transaction did not send funds to the game server wallet', { sig }, true);
       return false;
     }
 
-    // Calcular diferença de saldo
+    // Calculate balance difference
     const preBalance = tx.meta.preBalances[serverIndex];
     const postBalance = tx.meta.postBalances[serverIndex];
     const lamportsReceived = postBalance - preBalance;
 
     const valid = lamportsReceived >= expectedLamports;
     if (!valid) {
-      logSystemEvent('BID_UNDERPAID', `Valor recebido (${lamportsReceived/1e9} SOL) menor que esperado (${expectedLamports/1e9} SOL)`, { sig, lamportsReceived, expectedLamports }, true);
+      logSystemEvent('BID_UNDERPAID', `Received amount (${lamportsReceived/1e9} SOL) less than expected (${expectedLamports/1e9} SOL)`, { sig, lamportsReceived, expectedLamports }, true);
     }
     return valid;
   } catch (err) {
     console.error("Verify Bid Error:", err);
-    logSystemEvent('BID_VERIFY_ERROR', `Erro ao verificar lance: ${err.message}`, { sig, error: err.message }, true);
+    logSystemEvent('BID_VERIFY_ERROR', `Error verifying bid: ${err.message}`, { sig, error: err.message }, true);
     return false;
   }
 }
 
-// Lista de RPCs públicas para redundância na Mainnet (evita rate-limit no Render)
+// Fallback public RPCs for redundancy
 const FALLBACK_RPCS = [
   process.env.RPC_URL || "https://api.mainnet-beta.solana.com",
   "https://rpc.ankr.com/solana",
@@ -469,12 +469,11 @@ const FALLBACK_RPCS = [
 async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luckySolToPay, devFeeToPay, maxAttempts = 3) {
   const winnerLamports = Math.floor(potSolToPay * 1e9);
   const luckyLamports = luckyWinnerAddress && luckySolToPay > 0 ? Math.floor(luckySolToPay * 1e9) : 0;
-  const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% do total
-  const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% do total
+  const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% platform
+  const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% buy & burn
 
-  console.log(`💸 Iniciando Payout On-Chain: Vencedor (${winnerAddress}): ${winnerLamports/1e9} SOL | Lucky (${luckyWinnerAddress}): ${luckyLamports/1e9} SOL`);
+  console.log(`💸 Initiating On-Chain Payout: Winner (${winnerAddress}): ${winnerLamports/1e9} SOL | Lucky (${luckyWinnerAddress}): ${luckyLamports/1e9} SOL`);
 
-  // Tentar enviar através dos RPCs com retry
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     for (const rpcUrl of FALLBACK_RPCS) {
       try {
@@ -482,7 +481,7 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
         const balance = await conn.getBalance(SERVER_KEYPAIR.publicKey);
         
         if (balance < (winnerLamports + luckyLamports + platformLamports + 10000)) {
-          const errMsg = `Saldo insuficiente na carteira do servidor (${(balance/1e9).toFixed(4)} SOL) para pagar ${(((winnerLamports + luckyLamports + platformLamports)/1e9)).toFixed(4)} SOL.`;
+          const errMsg = `Insufficient funds in server wallet (${(balance/1e9).toFixed(4)} SOL) to pay ${(((winnerLamports + luckyLamports + platformLamports)/1e9)).toFixed(4)} SOL.`;
           console.error(`❌ ${errMsg}`);
           logSystemEvent('PAYOUT_LOW_BALANCE', errMsg, { balanceSol: balance/1e9, neededSol: (winnerLamports + luckyLamports + platformLamports)/1e9 }, true);
           return { winnerSig: null, luckySig: null };
@@ -490,19 +489,19 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
 
         const transaction = new Transaction();
         
-        // 1. Payout pro Vencedor do Jackpot (80%)
+        // 1. Payout to Main Jackpot Winner (80%)
         transaction.add(
           SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports })
         );
 
-        // 2. Payout pro Vencedor do Lucky Draw (5%)
+        // 2. Payout to Lucky Draw Winner (5%)
         if (luckyLamports > 0 && luckyWinnerAddress) {
           transaction.add(
             SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(luckyWinnerAddress), lamports: luckyLamports })
           );
         }
 
-        // 3. Taxa da Plataforma (4%)
+        // 3. Platform Fee (4%)
         transaction.add(
           SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformLamports })
         );
@@ -517,8 +516,8 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
         
         await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
         
-        console.log(`✅ PAYOUT CONFIRMADO NA SOLANA! RPC: ${rpcUrl} | Sig: ${sig}`);
-        logSystemEvent('PAYOUT_CONFIRMED', `Pagamento on-chain concluído com sucesso!`, {
+        console.log(`✅ PAYOUT CONFIRMED ON SOLANA! RPC: ${rpcUrl} | Sig: ${sig}`);
+        logSystemEvent('PAYOUT_CONFIRMED', `On-chain payout completed successfully!`, {
           winner: winnerAddress,
           winnerPrizeSol: winnerLamports / 1e9,
           luckyWinner: luckyWinnerAddress,
@@ -529,10 +528,10 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
           rpcUsed: rpcUrl
         });
         
-        // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
+        // Accumulate Buy & Burn funds
         gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
 
-        // Disparar o Buy & Burn se atingiu o limite de 0.05 SOL
+        // Trigger Buy & Burn at 0.05 SOL
         if (gameState.buyBurnPoolSol >= 0.05) {
           const lamportsToSpend = Math.floor(gameState.buyBurnPoolSol * 1e9);
           gameState.buyBurnPoolSol = 0;
@@ -541,16 +540,15 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
 
         return { winnerSig: sig, luckySig: sig };
       } catch (err) {
-        console.warn(`⚠️ Tentativa ${attempt} falhou no RPC ${rpcUrl}: ${err.message}. Tentando próximo...`);
-        logSystemEvent('PAYOUT_RETRY_WARNING', `Tentativa ${attempt} falhou no RPC ${rpcUrl}: ${err.message}`, { rpcUrl, attempt, error: err.message }, true);
+        console.warn(`⚠️ Attempt ${attempt} failed on RPC ${rpcUrl}: ${err.message}. Trying fallback...`);
+        logSystemEvent('PAYOUT_RETRY_WARNING', `Attempt ${attempt} failed on RPC ${rpcUrl}: ${err.message}`, { rpcUrl, attempt, error: err.message }, true);
       }
     }
-    // Aguarda 1 segundo antes do próximo ciclo de retry
     await new Promise(res => setTimeout(res, 1000));
   }
 
-  console.error("❌ Todas as tentativas de payout on-chain falharam nos RPCs!");
-  logSystemEvent('PAYOUT_CRITICAL_FAILURE', `FALHA CRÍTICA: Não foi possível enviar os prêmios on-chain após ${maxAttempts} tentativas!`, {
+  console.error("❌ All on-chain payout attempts failed across RPCs!");
+  logSystemEvent('PAYOUT_CRITICAL_FAILURE', `CRITICAL: Could not send on-chain payouts after ${maxAttempts} attempts!`, {
     winner: winnerAddress,
     potSol: potSolToPay,
     luckyWinner: luckyWinnerAddress,
@@ -566,7 +564,7 @@ app.post('/api/bid', async (req, res) => {
   
   if (gameState.isPaused) {
     return res.status(503).json({
-      error: `🚨 O JOGO ESTÁ TEMPORARIAMENTE PAUSADO: ${gameState.pauseReason || 'Manutenção Preventiva'}. Nenhum fundo foi debitado.`
+      error: `🚨 THE ARENA IS TEMPORARILY PAUSED: ${gameState.pauseReason || 'Scheduled Maintenance'}. No funds were debited.`
     });
   }
   
@@ -648,7 +646,7 @@ app.post('/api/bid', async (req, res) => {
   gameState.topBidders[address] = (gameState.topBidders[address] || 0) + bidAmount;
   gameState.minBidSol = Math.round((gameState.minBidSol + 0.001) * 1000) / 1000;
 
-  logSystemEvent('BID_CONFIRMED', `Novo lance confirmado: ${bidAmount.toFixed(3)} SOL por ${address.slice(0,6)}...${address.slice(-4)}`, {
+  logSystemEvent('BID_CONFIRMED', `Confirmed new bid: ${bidAmount.toFixed(3)} SOL by ${address.slice(0,6)}...${address.slice(-4)}`, {
     address,
     amountSol: bidAmount,
     sig: txSig,
@@ -686,7 +684,7 @@ app.post('/api/trigger-holder-airdrop', (req, res) => {
     time: Date.now()
   });
 
-  logSystemEvent('HOLDER_DRAW_EXECUTED', `Sorteio do Holder Vault executado! Vencedor: ${selectedAddress} (${prizeSol.toFixed(3)} SOL)`, {
+  logSystemEvent('HOLDER_DRAW_EXECUTED', `Holder Vault Draw Executed! Winner: ${selectedAddress} (${prizeSol.toFixed(3)} SOL)`, {
     winner: selectedAddress,
     prizeSol,
     txSig

@@ -151,17 +151,17 @@ function renderDashboard(data) {
       let tweetBtn = '';
       if (ev.type.includes('BUY_BURN') && !ev.isError) {
         const tweetText = encodeURIComponent(`🔥 AUTOMATED BUY & BURN ON @TheSolPot!\n\nJust bought & permanently burned $SOLPOT tokens from the market on Solana!\n\nTx Proof: ${ev.details?.solscanUrl || 'https://thesolpot.fun'}\n\nPlay & Win $SOL: https://thesolpot.fun\n#Solana #SolPot #BuyAndBurn`);
-        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Postar no X</a>`;
+        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Post to X</a>`;
       } else if (ev.type.includes('PAYOUT_CONFIRMED')) {
         const tweetText = encodeURIComponent(`👑 ROUND WINNER PAID OUT ON @TheSolPot!\n\n💰 Winner took home ${ev.details?.winnerPrizeSol || ''} SOL on Solana!\n\nVerify on Solscan: ${ev.details?.solscanUrl || 'https://thesolpot.fun'}\n\nJoin the next pot: https://thesolpot.fun\n#Solana #Web3 #Jackpot`);
-        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Postar no X</a>`;
+        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Post to X</a>`;
       }
 
       return `
         <div class="${cls}">
           <div>
             <strong>[${escapeHtml(ev.type)}]</strong> ${escapeHtml(ev.message)}
-            ${ev.details?.solscanUrl ? ` <a href="${ev.details.solscanUrl}" target="_blank" style="color:var(--green);text-decoration:underline;">Ver Solscan ↗</a>` : ''}
+            ${ev.details?.solscanUrl ? ` <a href="${ev.details.solscanUrl}" target="_blank" style="color:var(--green);text-decoration:underline;">View Solscan ↗</a>` : ''}
             ${tweetBtn}
           </div>
           <div class="log-time">${new Date(ev.timestamp).toLocaleTimeString()}</div>
@@ -170,11 +170,11 @@ function renderDashboard(data) {
     }).join('');
   }
 
-  // Renderizar Chat ao Vivo
+  // Render Live Chat
   const chatBox = $('admin-chat-box');
   const chat = data.chatMessages || [];
   if (chat.length === 0) {
-    chatBox.innerHTML = `<div class="chat-msg">Nenhuma mensagem no chat.</div>`;
+    chatBox.innerHTML = `<div class="chat-msg">No chat messages yet.</div>`;
   } else {
     chatBox.innerHTML = chat.slice(-25).map(m => `
       <div class="chat-msg">
@@ -185,16 +185,16 @@ function renderDashboard(data) {
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  // Renderizar Vencedores Recentes
+  // Render Recent Winners History
   const winStream = $('winners-history');
   const history = gs.history || [];
   if (history.length === 0) {
-    winStream.innerHTML = `<div class="log-item"><span>Nenhum vencedor ainda.</span></div>`;
+    winStream.innerHTML = `<div class="log-item"><span>No winners recorded yet.</span></div>`;
   } else {
     winStream.innerHTML = history.slice(0, 10).map(h => `
       <div class="log-item payout">
         <div>
-          <strong>#${h.round}</strong> 👑 ${h.winner.slice(0, 4)}...${h.winner.slice(-4)} ganhou <strong>${(h.potSol || 0).toFixed(3)} SOL</strong>
+          <strong>#${h.round}</strong> 👑 ${h.winner.slice(0, 4)}...${h.winner.slice(-4)} won <strong>${(h.potSol || 0).toFixed(3)} SOL</strong>
           ${h.luckyWinner ? `<span style="color:var(--cyan);"> | 🎲 Lucky: ${h.luckyWinner.address.slice(0, 4)}... (+${h.luckyWinner.prizeSol.toFixed(3)} SOL)</span>` : ''}
         </div>
         <div class="log-time">${new Date(h.endedAt).toLocaleTimeString()}</div>
@@ -217,17 +217,17 @@ async function sendAdminChat() {
     input.value = '';
     fetchAdminData();
   } catch (e) {
-    alert('Erro ao enviar mensagem: ' + e.message);
+    alert('Error sending broadcast: ' + e.message);
   }
 }
 
 async function clearChat() {
-  if (!confirm('Deseja realmente limpar todas as mensagens do chat dos jogadores?')) return;
+  if (!confirm('Are you sure you want to clear all in-game chat messages?')) return;
   try {
     const res = await fetch(`/api/admin/clear-chat?secret=${encodeURIComponent(adminSecret)}`, { method: 'POST' });
     if (res.ok) fetchAdminData();
   } catch (e) {
-    alert('Erro ao limpar chat: ' + e.message);
+    alert('Error clearing chat: ' + e.message);
   }
 }
 
@@ -236,28 +236,36 @@ async function clearErrorLogs() {
     const res = await fetch(`/api/admin/clear-errors?secret=${encodeURIComponent(adminSecret)}`, { method: 'POST' });
     if (res.ok) fetchAdminData();
   } catch (e) {
-    alert('Erro ao limpar erros: ' + e.message);
+    alert('Error clearing error logs: ' + e.message);
   }
 }
 
 async function triggerHolderDraw() {
-  if (!confirm('Deseja disparar o sorteio do Holder Vault agora?')) return;
+  if (!confirm('Do you want to trigger the Holder Vault Airdrop draw now?')) return;
   try {
     const res = await fetch('/api/trigger-holder-airdrop', { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      alert(`🎉 Sorteio Realizado!\nGanhador: ${data.winner}\nPrêmio: ${data.prizeSol.toFixed(3)} SOL`);
+      alert(`🎉 Holder Draw Executed!\nWinner: ${data.winner}\nPrize: ${data.prizeSol.toFixed(3)} SOL`);
       fetchAdminData();
+    } else {
+      alert('Error: ' + (data.error || 'Failed to trigger draw'));
+    }
+  } catch (e) {
+    alert('Error triggering draw: ' + e.message);
+  }
+}
+
 async function toggleGamePause() {
   const currentText = $('btn-killswitch').innerText;
-  const isCurrentlyPaused = currentText.includes('RETOMAR');
-  const action = isCurrentlyPaused ? 'despausar e RETOMAR' : 'PAUSAR EMERGENCIALMENTE';
+  const isCurrentlyPaused = currentText.includes('RESUME') || currentText.includes('RETOMAR');
+  const action = isCurrentlyPaused ? 'RESUME and UNPAUSE' : 'EMERGENCY PAUSE';
   
-  if (!confirm(`Tem certeza que deseja ${action} o jogo agora?`)) return;
+  if (!confirm(`Are you sure you want to ${action} the game now?`)) return;
 
   let reason = '';
   if (!isCurrentlyPaused) {
-    reason = prompt('Motivo da pausa (ex: Manutenção Técnica Preventiva):', 'Manutenção Técnica Preventiva') || 'Manutenção Preventiva';
+    reason = prompt('Reason for pause (e.g. Scheduled Maintenance):', 'Scheduled Maintenance') || 'Scheduled Maintenance';
   }
 
   try {
@@ -271,10 +279,10 @@ async function toggleGamePause() {
       alert(data.message);
       fetchAdminData();
     } else {
-      alert('Erro: ' + (data.error || 'Falha ao alterar estado de pausa'));
+      alert('Error: ' + (data.error || 'Failed to toggle pause'));
     }
   } catch (err) {
-    alert('Erro ao conectar ao servidor: ' + err.message);
+    alert('Error connecting to server: ' + err.message);
   }
 }
 
@@ -285,7 +293,7 @@ function startAdminLoop() {
   setInterval(fetchAdminData, 2000);
 }
 
-// Auto-login se chave já estiver salva
+// Auto-login if secret key is saved in localStorage
 window.addEventListener('DOMContentLoaded', () => {
   if (adminSecret) {
     $('admin-pass-input').value = adminSecret;

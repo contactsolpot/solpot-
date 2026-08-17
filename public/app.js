@@ -261,11 +261,11 @@ function render() {
   if (state.isPaused) {
     if (btnBid) {
       btnBid.disabled = true;
-      btnBid.innerText = '⚠️ ARENA EM PAUSA TÉCNICA';
+      btnBid.innerText = '⚠️ ARENA PAUSED FOR MAINTENANCE';
       btnBid.style.opacity = '0.6';
     }
   } else {
-    if (btnBid && btnBid.disabled && btnBid.innerText.includes('PAUSA')) {
+    if (btnBid && btnBid.disabled && btnBid.innerText.includes('PAUSED')) {
       btnBid.disabled = false;
       btnBid.innerText = 'PLACE BID';
       btnBid.style.opacity = '1';

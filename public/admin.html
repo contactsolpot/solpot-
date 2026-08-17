@@ -266,10 +266,10 @@
   <div id="auth-modal">
     <div class="auth-card">
       <h2>🔒 SolPot Admin Access</h2>
-      <p>Digite a chave secreta de administrador para acessar o centro de comando.</p>
-      <input type="password" id="admin-pass-input" class="auth-input" placeholder="Chave Secreta..." />
-      <button class="btn btn-green" style="width:100%; padding: 12px;" onclick="authenticateAdmin()">Desbloquear Terminal</button>
-      <div id="auth-error" style="color:var(--red); font-size:0.8rem; margin-top:12px; display:none;">Chave inválida!</div>
+      <p>Enter the admin secret key to unlock mission control and diagnostics.</p>
+      <input type="password" id="admin-pass-input" class="auth-input" placeholder="Admin Secret Key..." />
+      <button class="btn btn-green" style="width:100%; padding: 12px;" onclick="authenticateAdmin()">Unlock Mission Control</button>
+      <div id="auth-error" style="color:var(--red); font-size:0.8rem; margin-top:12px; display:none;">Invalid Secret Key!</div>
     </div>
   </div>
 
@@ -289,37 +289,37 @@
           <span class="pulse-dot"></span>
           <span id="system-status-text">MAINNET ONLINE</span>
         </div>
-        <button class="btn btn-red" id="btn-killswitch" style="font-weight:900;letter-spacing:0.5px;" onclick="toggleGamePause()">🚨 PAUSAR JOGO (KILLSWITCH)</button>
-        <button class="btn" onclick="fetchAdminData()">🔄 Atualizar</button>
-        <button class="btn btn-red" onclick="logoutAdmin()">Sair</button>
+        <button class="btn btn-red" id="btn-killswitch" style="font-weight:900;letter-spacing:0.5px;" onclick="toggleGamePause()">🚨 EMERGENCY PAUSE (KILLSWITCH)</button>
+        <button class="btn" onclick="fetchAdminData()">🔄 Refresh</button>
+        <button class="btn btn-red" onclick="logoutAdmin()">Logout</button>
       </div>
     </header>
 
     <!-- Incident / Error Banner -->
     <div class="alert-banner hidden" id="incident-banner">
       <div>
-        <div style="font-weight: 800; font-size: 0.95rem; color: #ef4444;">🚨 ALERTA DE SISTEMA DETECTADO</div>
-        <div class="alert-text" id="incident-text">Ocorreu um erro recente nas transferências ou RPCs da Solana.</div>
+        <div style="font-weight: 800; font-size: 0.95rem; color: #ef4444;">🚨 SYSTEM ALERT DETECTED</div>
+        <div class="alert-text" id="incident-text">A recent error occurred in Solana transfers or RPC responses.</div>
       </div>
-      <button class="btn btn-red" onclick="clearErrorLogs()">Limpar / Reconhecer</button>
+      <button class="btn btn-red" onclick="clearErrorLogs()">Clear / Acknowledge</button>
     </div>
 
     <!-- 4 Primary Metric Cards -->
     <div class="metrics-grid">
       <div class="metric-card" style="--accent: var(--green);">
-        <div class="metric-title">👥 Visitantes Online Agora</div>
+        <div class="metric-title">👥 Live Online Visitors</div>
         <div class="metric-value" id="val-online" style="color: var(--green);">0</div>
-        <div class="metric-sub">Conexões ativas no site</div>
+        <div class="metric-sub">Active connections on site</div>
       </div>
 
       <div class="metric-card" style="--accent: var(--gold);">
-        <div class="metric-title">👑 Lucro do Dev (Platform Vault)</div>
+        <div class="metric-title">👑 Dev Profit (Platform Vault)</div>
         <div class="metric-value" id="val-dev-vault" style="color: var(--gold);">0.000 SOL</div>
-        <div class="metric-sub" id="val-dev-accum">Acumulado total: 0.000 SOL</div>
+        <div class="metric-sub" id="val-dev-accum">All-time fee accumulated: 0.000 SOL</div>
       </div>
 
       <div class="metric-card" style="--accent: var(--cyan);">
-        <div class="metric-title">🏦 Saldo Hot Wallet do Jogo</div>
+        <div class="metric-title">🏦 Game Hot Wallet Balance</div>
         <div class="metric-value" id="val-server-bal" style="color: var(--cyan);">0.000 SOL</div>
         <div class="metric-sub" id="val-server-addr">BCw5...9Wnf</div>
       </div>
@@ -327,31 +327,31 @@
       <div class="metric-card" style="--accent: var(--purple);">
         <div class="metric-title">💎 Holder Vault Airdrop</div>
         <div class="metric-value" id="val-holder-vault" style="color: var(--purple);">0.000 SOL</div>
-        <div class="metric-sub" id="val-holder-timer">Próximo sorteio em breve</div>
+        <div class="metric-sub" id="val-holder-timer">Next draw scheduled</div>
       </div>
     </div>
 
     <!-- Secondary Metrics -->
     <div class="metrics-grid">
       <div class="metric-card">
-        <div class="metric-title">📈 Volume Total Apostado</div>
+        <div class="metric-title">📈 Total Volume Processed</div>
         <div class="metric-value" id="val-total-volume">0.000 SOL</div>
-        <div class="metric-sub" id="val-total-rounds">0 rodadas finalizadas</div>
+        <div class="metric-sub" id="val-total-rounds">0 rounds settled</div>
       </div>
       <div class="metric-card">
-        <div class="metric-title">🔥 Fundo de Buy & Burn</div>
+        <div class="metric-title">🔥 Buy & Burn Pool</div>
         <div class="metric-value" id="val-buyburn" style="color: #f97316;">0.000 SOL</div>
-        <div class="metric-sub">Dispara queima em 0.050 SOL</div>
+        <div class="metric-sub">Triggers burn at 0.050 SOL</div>
       </div>
       <div class="metric-card">
-        <div class="metric-title">🎲 Pote Lucky Draw (5%)</div>
+        <div class="metric-title">🎲 Lucky Draw Pool (5%)</div>
         <div class="metric-value" id="val-lucky-pot" style="color: var(--cyan);">0.000 SOL</div>
-        <div class="metric-sub">Sorteado a cada rodada</div>
+        <div class="metric-sub">Raffled every round</div>
       </div>
       <div class="metric-card">
-        <div class="metric-title">🏆 Ranking Pool (5%)</div>
+        <div class="metric-title">🏆 Top 10 Ranking Pool (5%)</div>
         <div class="metric-value" id="val-ranking-pot" style="color: var(--gold);">0.000 SOL</div>
-        <div class="metric-sub">Top 10 jogadores</div>
+        <div class="metric-sub">Top volume bidders</div>
       </div>
     </div>
 
@@ -363,46 +363,46 @@
         <!-- Game Status & Quick Controls -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">🎮 Status da Rodada Atual</div>
-            <span class="status-pill" id="round-badge">RODADA #1</span>
+            <div class="panel-title">🎮 Current Round Status</div>
+            <span class="status-pill" id="round-badge">ROUND #1</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
             <div>
-              <div style="font-size: 0.8rem; color: var(--text-dim);">POTE DO JACKPOT (80%)</div>
+              <div style="font-size: 0.8rem; color: var(--text-dim);">JACKPOT POT (80%)</div>
               <div style="font-size: 1.5rem; font-weight: 900; color: var(--green); font-family: var(--mono);" id="val-jackpot">0.000 SOL</div>
             </div>
             <div>
-              <div style="font-size: 0.8rem; color: var(--text-dim);">LÍDER ATUAL</div>
-              <div style="font-size: 0.95rem; font-weight: 700; font-family: var(--mono); color: #fff;" id="val-leader">Nenhum lance</div>
+              <div style="font-size: 0.8rem; color: var(--text-dim);">CURRENT LEADER</div>
+              <div style="font-size: 0.95rem; font-weight: 700; font-family: var(--mono); color: #fff;" id="val-leader">No bids yet</div>
             </div>
             <div>
-              <div style="font-size: 0.8rem; color: var(--text-dim);">CRONÔMETRO</div>
+              <div style="font-size: 0.8rem; color: var(--text-dim);">ROUND TIMER</div>
               <div style="font-size: 1.5rem; font-weight: 900; color: var(--gold); font-family: var(--mono);" id="val-timer">--:--</div>
             </div>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn btn-green" onclick="triggerHolderDraw()">🎲 Disparar Sorteio Holder Agora</button>
+            <button class="btn btn-green" onclick="triggerHolderDraw()">🎲 Trigger Holder Draw Now</button>
           </div>
         </div>
 
         <!-- System & Error Diagnostic Stream -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">🚨 Central de Diagnósticos & Logs de Erro</div>
-            <button class="btn btn-red" onclick="clearErrorLogs()">Limpar Erros</button>
+            <div class="panel-title">🚨 Diagnostics & Error Stream</div>
+            <button class="btn btn-red" onclick="clearErrorLogs()">Clear Errors</button>
           </div>
           <div class="log-stream" id="error-stream">
-            <div class="log-item"><span>Nenhum erro registrado. Todos os sistemas operando 100%.</span></div>
+            <div class="log-item"><span>✅ No errors logged. All systems & RPCs operational.</span></div>
           </div>
         </div>
 
         <!-- Live Bids & Transactions -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">⚡ Feed de Lances e Eventos On-Chain</div>
+            <div class="panel-title">⚡ Live On-Chain Event Feed</div>
           </div>
           <div class="log-stream" id="event-stream">
-            <div class="log-item"><span>Aguardando lances...</span></div>
+            <div class="log-item"><span>Waiting for incoming bids...</span></div>
           </div>
         </div>
 
@@ -414,25 +414,25 @@
         <!-- Live Chat Monitor -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">💬 Monitor de Chat ao Vivo</div>
-            <button class="btn btn-red" onclick="clearChat()">Limpar Chat</button>
+            <div class="panel-title">💬 Live In-Game Chat Monitor</div>
+            <button class="btn btn-red" onclick="clearChat()">Clear Chat</button>
           </div>
           <div class="chat-box" id="admin-chat-box">
-            <div class="chat-msg">Aguardando mensagens...</div>
+            <div class="chat-msg">Waiting for chat messages...</div>
           </div>
           <div class="chat-input-row">
-            <input type="text" id="admin-msg-input" placeholder="Enviar mensagem como DEV..." onkeydown="if(event.key==='Enter') sendAdminChat()" />
-            <button class="btn btn-green" onclick="sendAdminChat()">Enviar</button>
+            <input type="text" id="admin-msg-input" placeholder="Broadcast message as DEV/ADMIN..." onkeydown="if(event.key==='Enter') sendAdminChat()" />
+            <button class="btn btn-green" onclick="sendAdminChat()">Broadcast</button>
           </div>
         </div>
 
         <!-- Recent Winners History -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">🏆 Histórico de Vencedores</div>
+            <div class="panel-title">🏆 Recent Winners History</div>
           </div>
           <div class="log-stream" id="winners-history">
-            <div class="log-item"><span>Nenhum vencedor ainda.</span></div>
+            <div class="log-item"><span>No round winners yet.</span></div>
           </div>
         </div>
 
