@@ -31,6 +31,35 @@ function recordRoundAudit(roundData) {
   }
 }
 
+// ==================== LOGS DE EVENTOS E ERROS DO SISTEMA ====================
+const SYSTEM_EVENTS_FILE = path.join(__dirname, 'system_events.json');
+let systemEvents = [];
+try {
+  if (fs.existsSync(SYSTEM_EVENTS_FILE)) {
+    systemEvents = JSON.parse(fs.readFileSync(SYSTEM_EVENTS_FILE, 'utf8'));
+  }
+} catch (e) { systemEvents = []; }
+
+function logSystemEvent(type, message, details = {}, isError = false) {
+  const event = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+    timestamp: Date.now(),
+    type, // 'BID', 'PAYOUT_SUCCESS', 'PAYOUT_ERROR', 'HOLDER_DRAW', 'BUY_BURN', 'CHAT', 'SECURITY', 'RPC_FAIL'
+    message,
+    details,
+    isError
+  };
+  systemEvents.unshift(event);
+  if (systemEvents.length > 100) systemEvents.pop(); // Guarda os últimos 100 eventos
+  try { fs.writeFileSync(SYSTEM_EVENTS_FILE, JSON.stringify(systemEvents, null, 2)); } catch {}
+  
+  if (isError) {
+    console.error(`🚨 [ALERTA DE SISTEMA] ${type}: ${message}`, details);
+  } else {
+    console.log(`ℹ️ [EVENTO] ${type}: ${message}`);
+  }
+}
+
 // ==================== PERSISTÊNCIA ====================
 const STATE_FILE = path.join(__dirname, 'gameState.json');
 function saveState() {
@@ -219,40 +248,89 @@ app.get('/api/stream', (req, res) => {
   req.on('close', () => { sseClients = sseClients.filter((c) => c.id !== clientId); });
 });
 
-// ==================== ENDPOINTS DE AUDITORIA E VERSÃO ====================
-app.get('/api/version', (req, res) => {
-  res.json({
-    version: '1.2.0',
-    buildName: 'Lucky Draw & Multi-RPC Engine',
-    releaseDate: '2026-08-17',
-    features: ['80/5/5/5/4/1 Economy', 'Lucky Draw 5%', 'Multi-RPC Fallback', 'Append-only Audit Log']
-  });
-});
+// ==================== PAINEL DE CONTROLE / ADMIN API ====================
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'solpotadmin2026';
 
-app.get('/api/audit/rounds', (req, res) => {
+function verifyAdmin(req) {
+  const secret = req.query.secret || req.headers['x-admin-secret'] || req.body?.secret;
+  return secret === ADMIN_SECRET;
+}
+
+app.get('/api/admin/overview', async (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado: Chave de Admin inválida.' });
+
   try {
+    let serverBal = 0, platformBal = 0, holderBal = 0;
+    try {
+      if (SERVER_KEYPAIR) serverBal = (await solanaConnection.getBalance(SERVER_KEYPAIR.publicKey)) / 1e9;
+      if (PLATFORM_VAULT) platformBal = (await solanaConnection.getBalance(PLATFORM_VAULT)) / 1e9;
+      if (HOLDER_VAULT) holderBal = (await solanaConnection.getBalance(HOLDER_VAULT)) / 1e9;
+    } catch (e) {
+      console.warn('Erro ao consultar saldos on-chain no admin:', e.message);
+    }
+
+    // Calcular estatísticas cumulativas
+    let totalRounds = 0;
+    let totalVolumeSol = 0;
+    let totalPlatformFeesEarnedSol = 0;
+    let totalLuckyPrizesPaidSol = 0;
+    
     if (fs.existsSync(AUDIT_FILE)) {
       const audits = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'));
-      return res.json({ totalRounds: audits.length, rounds: audits });
+      totalRounds = audits.length;
+      audits.forEach(r => {
+        const roundTotalBids = (r.bids || []).reduce((acc, b) => acc + (b.amountSol || 0), 0);
+        totalVolumeSol += roundTotalBids;
+        totalPlatformFeesEarnedSol += (r.devFeeSol || 0);
+        if (r.luckyWinner) totalLuckyPrizesPaidSol += (r.luckyWinner.prizeSol || 0);
+      });
     }
-    res.json({ totalRounds: 0, rounds: [] });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+
+    const errorsList = systemEvents.filter(e => e.isError);
+
+    res.json({
+      onlineUsers: sseClients.length,
+      serverUptimeSec: Math.floor(process.uptime()),
+      balances: {
+        serverWalletSol: serverBal,
+        platformVaultSol: platformBal,
+        holderVaultSol: holderBal,
+        serverWalletAddr: SERVER_KEYPAIR ? SERVER_KEYPAIR.publicKey.toString() : null,
+        platformVaultAddr: PLATFORM_VAULT ? PLATFORM_VAULT.toString() : null,
+        holderVaultAddr: HOLDER_VAULT ? HOLDER_VAULT.toString() : null
+      },
+      cumulative: {
+        totalRounds,
+        totalVolumeSol: Math.round(totalVolumeSol * 1000) / 1000,
+        totalPlatformFeesEarnedSol: Math.round(totalPlatformFeesEarnedSol * 1000) / 1000,
+        totalLuckyPrizesPaidSol: Math.round(totalLuckyPrizesPaidSol * 1000) / 1000,
+        totalErrorsDetected: errorsList.length
+      },
+      gameState,
+      recentEvents: systemEvents.slice(0, 50),
+      recentErrors: errorsList.slice(0, 20),
+      chatMessages: gameState.chatMessages
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/audit/round/:roundNumber', (req, res) => {
-  try {
-    const roundNum = Number(req.params.roundNumber);
-    if (fs.existsSync(AUDIT_FILE)) {
-      const audits = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'));
-      const found = audits.find(r => r.round === roundNum);
-      if (found) return res.json(found);
-    }
-    res.status(404).json({ error: `Rodada #${req.params.roundNumber} não encontrada no log de auditoria.` });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+app.post('/api/admin/clear-chat', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  gameState.chatMessages = [
+    { sender: 'SYSTEM', text: 'Chat limpo pelo Administrador.', isSystem: true, time: Date.now() }
+  ];
+  broadcastState();
+  logSystemEvent('CHAT_CLEARED', 'Chat limpo pelo Administrador');
+  res.json({ success: true, message: 'Chat limpo com sucesso.' });
+});
+
+app.post('/api/admin/clear-errors', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  systemEvents = systemEvents.filter(e => !e.isError);
+  try { fs.writeFileSync(SYSTEM_EVENTS_FILE, JSON.stringify(systemEvents, null, 2)); } catch {}
+  res.json({ success: true, message: 'Erros limpos com sucesso.' });
 });
 
 app.get('/api/check-holder/:address', async (req, res) => {
@@ -312,7 +390,6 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
         lastValidBlockHeight: lastValidBlockHeight
       }, 'confirmed');
     } else {
-      // Fallback if older frontend (should not happen now)
       await solanaConnection.confirmTransaction(sig, 'confirmed');
     }
 
@@ -320,21 +397,30 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
     const tx = await solanaConnection.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
     if (!tx || tx.meta.err) {
       console.error("Tx failed or not found. Err:", tx?.meta?.err);
+      logSystemEvent('BID_TX_FAIL', 'Transação do lance falhou ou não foi encontrada na Solana', { sig, err: tx?.meta?.err }, true);
       return false;
     }
 
     // Achar a index da carteira do Servidor no array de chaves
     const serverIndex = tx.transaction.message.staticAccountKeys.findIndex(k => k.equals(SERVER_KEYPAIR.publicKey));
-    if (serverIndex === -1) return false;
+    if (serverIndex === -1) {
+      logSystemEvent('BID_INVALID_RECIPIENT', 'Transação não enviou fundos para a carteira do jogo', { sig }, true);
+      return false;
+    }
 
     // Calcular diferença de saldo
     const preBalance = tx.meta.preBalances[serverIndex];
     const postBalance = tx.meta.postBalances[serverIndex];
     const lamportsReceived = postBalance - preBalance;
 
-    return lamportsReceived >= expectedLamports;
+    const valid = lamportsReceived >= expectedLamports;
+    if (!valid) {
+      logSystemEvent('BID_UNDERPAID', `Valor recebido (${lamportsReceived/1e9} SOL) menor que esperado (${expectedLamports/1e9} SOL)`, { sig, lamportsReceived, expectedLamports }, true);
+    }
+    return valid;
   } catch (err) {
     console.error("Verify Bid Error:", err);
+    logSystemEvent('BID_VERIFY_ERROR', `Erro ao verificar lance: ${err.message}`, { sig, error: err.message }, true);
     return false;
   }
 }
@@ -362,7 +448,9 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
         const balance = await conn.getBalance(SERVER_KEYPAIR.publicKey);
         
         if (balance < (winnerLamports + luckyLamports + platformLamports + 10000)) {
-          console.error(`❌ Saldo insuficiente na carteira do servidor (${balance/1e9} SOL) para pagar ${((winnerLamports + luckyLamports + platformLamports)/1e9).toFixed(5)} SOL.`);
+          const errMsg = `Saldo insuficiente na carteira do servidor (${(balance/1e9).toFixed(4)} SOL) para pagar ${(((winnerLamports + luckyLamports + platformLamports)/1e9)).toFixed(4)} SOL.`;
+          console.error(`❌ ${errMsg}`);
+          logSystemEvent('PAYOUT_LOW_BALANCE', errMsg, { balanceSol: balance/1e9, neededSol: (winnerLamports + luckyLamports + platformLamports)/1e9 }, true);
           return { winnerSig: null, luckySig: null };
         }
 
@@ -396,6 +484,16 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
         await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
         
         console.log(`✅ PAYOUT CONFIRMADO NA SOLANA! RPC: ${rpcUrl} | Sig: ${sig}`);
+        logSystemEvent('PAYOUT_CONFIRMED', `Pagamento on-chain concluído com sucesso!`, {
+          winner: winnerAddress,
+          winnerPrizeSol: winnerLamports / 1e9,
+          luckyWinner: luckyWinnerAddress,
+          luckyPrizeSol: luckyLamports / 1e9,
+          platformFeeSol: platformLamports / 1e9,
+          txSig: sig,
+          solscanUrl: `https://solscan.io/tx/${sig}`,
+          rpcUsed: rpcUrl
+        });
         
         // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
         gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
@@ -410,6 +508,7 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
         return { winnerSig: sig, luckySig: sig };
       } catch (err) {
         console.warn(`⚠️ Tentativa ${attempt} falhou no RPC ${rpcUrl}: ${err.message}. Tentando próximo...`);
+        logSystemEvent('PAYOUT_RETRY_WARNING', `Tentativa ${attempt} falhou no RPC ${rpcUrl}: ${err.message}`, { rpcUrl, attempt, error: err.message }, true);
       }
     }
     // Aguarda 1 segundo antes do próximo ciclo de retry
@@ -417,6 +516,12 @@ async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luc
   }
 
   console.error("❌ Todas as tentativas de payout on-chain falharam nos RPCs!");
+  logSystemEvent('PAYOUT_CRITICAL_FAILURE', `FALHA CRÍTICA: Não foi possível enviar os prêmios on-chain após ${maxAttempts} tentativas!`, {
+    winner: winnerAddress,
+    potSol: potSolToPay,
+    luckyWinner: luckyWinnerAddress,
+    luckyPrizeSol: luckySolToPay
+  }, true);
   return { winnerSig: null, luckySig: null };
 }
 // ====================================================
@@ -450,6 +555,7 @@ app.post('/api/bid', async (req, res) => {
     return res.status(400).json({ error: isVip ? `VIP Minimum Bid (25% Discount): ${effectiveMinBid.toFixed(3)} SOL` : `Minimum Bid Required: ${gameState.minBidSol.toFixed(3)} SOL` });
   }
   if (userTickets < 1) {
+    logSystemEvent('TOKEN_GATE_BLOCKED', `Tentativa de jogar sem tokens suficientes: ${address}`, { address, currentBalance }, true);
     return res.status(403).json({ error: `Token Gate: You need at least 10,000 ${gameState.token.name} to play!`, buyUrl: gameState.token.pumpUrl });
   }
 
@@ -486,16 +592,13 @@ app.post('/api/bid', async (req, res) => {
     } else if (gameState.roundSeconds > 10) {
       gameState.roundSeconds -= 2;
     }
-    // Floor at 10 seconds
     gameState.roundSeconds = Math.max(10, gameState.roundSeconds);
   }
 
-  // Only start the clock if we have enough unique players
   if (gameState.uniqueBidders.length >= MIN_UNIQUE_BIDDERS) {
-    // Reseta o cronômetro SEMPRE que há um novo lance válido, mas para o valor do roundSeconds que decaiu
     gameState.deadline = now + gameState.roundSeconds * 1000;
   } else {
-    gameState.deadline = null; // Keeps clock waiting
+    gameState.deadline = null;
   }
 
   gameState.leader = { address: address, amountSol: bidAmount, time: now, sig: txSig, tickets: userTickets, isVip };
@@ -503,11 +606,18 @@ app.post('/api/bid', async (req, res) => {
   if (gameState.bids.length > 50) gameState.bids.pop();
   gameState.bidCount += 1;
   gameState.topBidders[address] = (gameState.topBidders[address] || 0) + bidAmount;
-  // Aumenta em apenas 0.001 SOL por lance para encorajar mais brigas
   gameState.minBidSol = Math.round((gameState.minBidSol + 0.001) * 1000) / 1000;
 
+  logSystemEvent('BID_CONFIRMED', `Novo lance confirmado: ${bidAmount.toFixed(3)} SOL por ${address.slice(0,6)}...${address.slice(-4)}`, {
+    address,
+    amountSol: bidAmount,
+    sig: txSig,
+    round: gameState.round,
+    potNow: gameState.potSol
+  });
+
   broadcastState();
-  saveState(); // H4 FIX: Persistir estado após cada bid
+  saveState();
 
   res.json({
     success: true,
@@ -526,6 +636,13 @@ app.post('/api/trigger-holder-airdrop', (req, res) => {
   gameState.holderAirdrop.lastWinner = { winner: selectedAddress, prizeSol, tickets: Math.floor(Math.random() * 15) + 1, isVip: true, sig: txSig, drawnAt: Date.now() };
   gameState.holderPoolSol = 0.01;
   gameState.holderAirdrop.nextDrawTime = Date.now() + 12 * 60 * 60 * 1000;
+  
+  logSystemEvent('HOLDER_DRAW_EXECUTED', `Sorteio do Holder Vault executado! Vencedor: ${selectedAddress} (${prizeSol.toFixed(3)} SOL)`, {
+    winner: selectedAddress,
+    prizeSol,
+    txSig
+  });
+
   broadcastState();
   res.json({ success: true, message: `Holder Airdrop Executed! Winner: ${selectedAddress} won ${prizeSol.toFixed(3)} SOL!`, winner: selectedAddress, prizeSol, txSig });
 });
@@ -540,23 +657,25 @@ app.post('/api/set-nickname', (req, res) => {
 });
 
 app.post('/api/chat', (req, res) => {
-  const { sender, text, isVip } = req.body;
+  const { sender, text, isVip, isAdmin } = req.body;
   if (!text || text.trim().length === 0) return res.status(400).json({ error: 'Empty message' });
   
-  const displaySender = gameState.nicknames[sender] || sender || 'Anonymous';
+  const displaySender = isAdmin ? '👑 DEV/ADMIN' : (gameState.nicknames[sender] || sender || 'Anonymous');
   
   // C3 FIX: Sanitizar texto contra XSS no lado do servidor
   const msg = {
     sender: sanitizeText(displaySender),
     text: sanitizeText(text.trim().substring(0, 150)),
-    isVip: !!isVip,
-    isSystem: false,
+    isVip: !!isVip || !!isAdmin,
+    isSystem: !!isAdmin,
     time: Date.now()
   };
   
   gameState.chatMessages.push(msg);
   if (gameState.chatMessages.length > 50) gameState.chatMessages.shift(); // Keep only last 50
   
+  logSystemEvent('CHAT_MESSAGE', `${displaySender}: ${msg.text}`, { sender: displaySender, text: msg.text });
+
   broadcastState();
   res.json({ success: true });
 });
