@@ -132,16 +132,21 @@ function renderDashboard(data) {
     evStream.innerHTML = `<div class="log-item"><span>Aguardando lances e pagamentos...</span></div>`;
   } else {
     evStream.innerHTML = events.slice(0, 30).map(ev => {
-      let cls = 'log-item';
-      if (ev.isError) cls += ' error';
-      else if (ev.type.includes('BID')) cls += ' bid';
-      else if (ev.type.includes('PAYOUT') || ev.type.includes('DRAW')) cls += ' payout';
+      let tweetBtn = '';
+      if (ev.type.includes('BUY_BURN') && !ev.isError) {
+        const tweetText = encodeURIComponent(`🔥 AUTOMATED BUY & BURN ON @TheSolPot!\n\nJust bought & permanently burned $SOLPOT tokens from the market on Solana!\n\nTx Proof: ${ev.details?.solscanUrl || 'https://thesolpot.fun'}\n\nPlay & Win $SOL: https://thesolpot.fun\n#Solana #SolPot #BuyAndBurn`);
+        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Postar no X</a>`;
+      } else if (ev.type.includes('PAYOUT_CONFIRMED')) {
+        const tweetText = encodeURIComponent(`👑 ROUND WINNER PAID OUT ON @TheSolPot!\n\n💰 Winner took home ${ev.details?.winnerPrizeSol || ''} SOL on Solana!\n\nVerify on Solscan: ${ev.details?.solscanUrl || 'https://thesolpot.fun'}\n\nJoin the next pot: https://thesolpot.fun\n#Solana #Web3 #Jackpot`);
+        tweetBtn = ` <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank" class="btn btn-green" style="padding:2px 8px;font-size:0.7rem;text-decoration:none;margin-left:6px;">🐦 Postar no X</a>`;
+      }
 
       return `
         <div class="${cls}">
           <div>
             <strong>[${escapeHtml(ev.type)}]</strong> ${escapeHtml(ev.message)}
             ${ev.details?.solscanUrl ? ` <a href="${ev.details.solscanUrl}" target="_blank" style="color:var(--green);text-decoration:underline;">Ver Solscan ↗</a>` : ''}
+            ${tweetBtn}
           </div>
           <div class="log-time">${new Date(ev.timestamp).toLocaleTimeString()}</div>
         </div>
