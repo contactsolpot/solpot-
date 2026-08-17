@@ -15,6 +15,22 @@ function sanitizeText(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }
 
+// ==================== AUDITORIA PERPÉTUA ====================
+const AUDIT_FILE = path.join(__dirname, 'audit_rounds.json');
+function recordRoundAudit(roundData) {
+  try {
+    let auditLog = [];
+    if (fs.existsSync(AUDIT_FILE)) {
+      auditLog = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'));
+    }
+    auditLog.push(roundData);
+    fs.writeFileSync(AUDIT_FILE, JSON.stringify(auditLog, null, 2));
+    console.log(`📜 [AUDITORIA] Rodada #${roundData.round} registrada com sucesso no log perpétuo!`);
+  } catch (e) {
+    console.error('Erro ao registrar log de auditoria:', e.message);
+  }
+}
+
 // ==================== PERSISTÊNCIA ====================
 const STATE_FILE = path.join(__dirname, 'gameState.json');
 function saveState() {
@@ -203,6 +219,33 @@ app.get('/api/stream', (req, res) => {
   req.on('close', () => { sseClients = sseClients.filter((c) => c.id !== clientId); });
 });
 
+// ==================== ENDPOINTS DE AUDITORIA ====================
+app.get('/api/audit/rounds', (req, res) => {
+  try {
+    if (fs.existsSync(AUDIT_FILE)) {
+      const audits = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'));
+      return res.json({ totalRounds: audits.length, rounds: audits });
+    }
+    res.json({ totalRounds: 0, rounds: [] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/audit/round/:roundNumber', (req, res) => {
+  try {
+    const roundNum = Number(req.params.roundNumber);
+    if (fs.existsSync(AUDIT_FILE)) {
+      const audits = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8'));
+      const found = audits.find(r => r.round === roundNum);
+      if (found) return res.json(found);
+    }
+    res.status(404).json({ error: `Rodada #${req.params.roundNumber} não encontrada no log de auditoria.` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/check-holder/:address', async (req, res) => {
   const { address } = req.params;
   
@@ -287,53 +330,85 @@ async function verifyBidOnChain(sig, expectedLamports, blockhash, lastValidBlock
   }
 }
 
-async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luckySolToPay, devFeeToPay, retries = 3) {
-  try {
-    const winnerLamports = Math.floor(potSolToPay * 1e9);
-    const luckyLamports = luckyWinnerAddress && luckySolToPay > 0 ? Math.floor(luckySolToPay * 1e9) : 0;
-    const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% do total (80% da devFee)
-    const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% do total (20% da devFee)
+// Lista de RPCs públicas para redundância na Mainnet (evita rate-limit no Render)
+const FALLBACK_RPCS = [
+  process.env.RPC_URL || "https://api.mainnet-beta.solana.com",
+  "https://rpc.ankr.com/solana",
+  "https://solana-rpc.publicnode.com"
+];
 
-    // Verificar se a carteira tem saldo suficiente para o pagamento
-    const balance = await solanaConnection.getBalance(SERVER_KEYPAIR.publicKey);
-    if (balance < (winnerLamports + luckyLamports + platformLamports)) {
-      console.warn(`⚠️ Sem fundos na Mainnet (${balance/1e9} SOL). Fazendo Payout Simulado (Virtual).`);
-      return { winnerSig: null, luckySig: null };
+async function executePayout(winnerAddress, potSolToPay, luckyWinnerAddress, luckySolToPay, devFeeToPay, maxAttempts = 3) {
+  const winnerLamports = Math.floor(potSolToPay * 1e9);
+  const luckyLamports = luckyWinnerAddress && luckySolToPay > 0 ? Math.floor(luckySolToPay * 1e9) : 0;
+  const platformLamports = Math.floor((devFeeToPay * 0.8) * 1e9); // 4% do total
+  const buyBurnLamports = Math.floor((devFeeToPay * 0.2) * 1e9);  // 1% do total
+
+  console.log(`💸 Iniciando Payout On-Chain: Vencedor (${winnerAddress}): ${winnerLamports/1e9} SOL | Lucky (${luckyWinnerAddress}): ${luckyLamports/1e9} SOL`);
+
+  // Tentar enviar através dos RPCs com retry
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (const rpcUrl of FALLBACK_RPCS) {
+      try {
+        const conn = new Connection(rpcUrl, 'confirmed');
+        const balance = await conn.getBalance(SERVER_KEYPAIR.publicKey);
+        
+        if (balance < (winnerLamports + luckyLamports + platformLamports + 10000)) {
+          console.error(`❌ Saldo insuficiente na carteira do servidor (${balance/1e9} SOL) para pagar ${((winnerLamports + luckyLamports + platformLamports)/1e9).toFixed(5)} SOL.`);
+          return { winnerSig: null, luckySig: null };
+        }
+
+        const transaction = new Transaction();
+        
+        // 1. Payout pro Vencedor do Jackpot (80%)
+        transaction.add(
+          SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports })
+        );
+
+        // 2. Payout pro Vencedor do Lucky Draw (5%)
+        if (luckyLamports > 0 && luckyWinnerAddress) {
+          transaction.add(
+            SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(luckyWinnerAddress), lamports: luckyLamports })
+          );
+        }
+
+        // 3. Taxa da Plataforma (4%)
+        transaction.add(
+          SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformLamports })
+        );
+
+        const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = SERVER_KEYPAIR.publicKey;
+        transaction.sign(SERVER_KEYPAIR);
+
+        const rawTx = transaction.serialize();
+        const sig = await conn.sendRawTransaction(rawTx, { skipPreflight: false, maxRetries: 5 });
+        
+        await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+        
+        console.log(`✅ PAYOUT CONFIRMADO NA SOLANA! RPC: ${rpcUrl} | Sig: ${sig}`);
+        
+        // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
+        gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
+
+        // Disparar o Buy & Burn se atingiu o limite de 0.02 SOL
+        if (gameState.buyBurnPoolSol >= 0.02) {
+          const lamportsToSpend = Math.floor(gameState.buyBurnPoolSol * 1e9);
+          gameState.buyBurnPoolSol = 0;
+          executeBuyAndBurn(lamportsToSpend);
+        }
+
+        return { winnerSig: sig, luckySig: sig };
+      } catch (err) {
+        console.warn(`⚠️ Tentativa ${attempt} falhou no RPC ${rpcUrl}: ${err.message}. Tentando próximo...`);
+      }
     }
-
-    // Registrar o aumento do fundo de Buy & Burn internamente (Hot Wallet retém esse 1%)
-    gameState.buyBurnPoolSol += (buyBurnLamports / 1e9);
-
-    // Transferir 80% pro Vencedor, 5% pro Sorteado da Rodada e 4% pra Plataforma (Lucro)
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(winnerAddress), lamports: winnerLamports })
-    );
-
-    if (luckyLamports > 0 && luckyWinnerAddress) {
-      transaction.add(
-        SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: new PublicKey(luckyWinnerAddress), lamports: luckyLamports })
-      );
-    }
-
-    transaction.add(
-      SystemProgram.transfer({ fromPubkey: SERVER_KEYPAIR.publicKey, toPubkey: PLATFORM_VAULT, lamports: platformLamports })
-    );
-
-    const sig = await sendAndConfirmTransaction(solanaConnection, transaction, [SERVER_KEYPAIR]);
-    console.log(`✅ Payout sent to Winner (${winnerAddress}) & Lucky Draw (${luckyWinnerAddress})! Sig: ${sig}`);
-    
-    // Disparar o Buy & Burn se atingiu o limite de 0.02 SOL
-    if (gameState.buyBurnPoolSol >= 0.02) {
-      const lamportsToSpend = Math.floor(gameState.buyBurnPoolSol * 1e9);
-      gameState.buyBurnPoolSol = 0; // Reset
-      executeBuyAndBurn(lamportsToSpend); // Roda em background
-    }
-
-    return { winnerSig: sig, luckySig: sig };
-  } catch (err) {
-    console.error("Execute Payout Error:", err);
-    return { winnerSig: null, luckySig: null };
+    // Aguarda 1 segundo antes do próximo ciclo de retry
+    await new Promise(res => setTimeout(res, 1000));
   }
+
+  console.error("❌ Todas as tentativas de payout on-chain falharam nos RPCs!");
+  return { winnerSig: null, luckySig: null };
 }
 // ====================================================
 
@@ -529,6 +604,17 @@ setInterval(() => {
           payoutSig: winnerSig
         };
         
+        // Registrar auditoria completa e perpétua com todas as assinaturas de lances e pagamentos
+        recordRoundAudit({
+          ...roundSummary,
+          bids: [...gameState.bids],
+          rankingPoolSol: gameState.rankingPoolSol,
+          holderPoolSol: gameState.holderPoolSol,
+          devFeeSol: devFeeThisRound,
+          solscanWinnerPayout: `https://solscan.io/tx/${winnerSig}`,
+          solscanLuckyPayout: `https://solscan.io/tx/${luckySig}`
+        });
+
         gameState.history.unshift(roundSummary);
         gameState.lastWinner = roundSummary;
         gameState.lastLuckyWinner = {
