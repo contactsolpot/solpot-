@@ -637,6 +637,15 @@ app.post('/api/trigger-holder-airdrop', (req, res) => {
   gameState.holderPoolSol = 0.01;
   gameState.holderAirdrop.nextDrawTime = Date.now() + 12 * 60 * 60 * 1000;
   
+  // Anúncio automático do Bot no chat com link do Solscan
+  gameState.chatMessages.push({
+    sender: '💎 HOLDER BOT',
+    text: `💎 HOLDER AIRDROP DRAW!\n🎉 Winner: ${selectedAddress.slice(0,4)}...${selectedAddress.slice(-4)} won ${prizeSol.toFixed(3)} SOL!\n🔗 https://solscan.io/tx/${txSig}`,
+    isBot: true,
+    isSystem: true,
+    time: Date.now()
+  });
+
   logSystemEvent('HOLDER_DRAW_EXECUTED', `Sorteio do Holder Vault executado! Vencedor: ${selectedAddress} (${prizeSol.toFixed(3)} SOL)`, {
     winner: selectedAddress,
     prizeSol,
@@ -753,10 +762,11 @@ setInterval(() => {
           sig: luckySig
         };
 
-        // Adicionar mensagem no chat comemorando ambos
+        // Adicionar anúncio do Bot no chat comemorando ambos e link do Solscan
         gameState.chatMessages.push({
-          sender: 'SYSTEM',
-          text: `👑 Round #${gameState.round} Won by ${winner.slice(0,4)}...${winner.slice(-4)} (${potPrize.toFixed(3)} SOL)! 🎲 Lucky Draw won by ${luckyWinner.slice(0,4)}...${luckyWinner.slice(-4)} (+${luckyPrize.toFixed(3)} SOL)!`,
+          sender: '🤖 SOLPOT BOT',
+          text: `👑 ROUND #${gameState.round} SETTLED!\n🏆 Jackpot: ${winner.slice(0,4)}...${winner.slice(-4)} won ${potPrize.toFixed(3)} SOL\n🎲 Lucky Winner: ${luckyWinner.slice(0,4)}...${luckyWinner.slice(-4)} (+${luckyPrize.toFixed(3)} SOL)\n🔗 https://solscan.io/tx/${winnerSig}`,
+          isBot: true,
           isSystem: true,
           time: Date.now()
         });
@@ -862,11 +872,12 @@ async function executeBuyAndBurn(lamportsToSpend) {
          const formattedAmount = (Number(tokenAmountStr) / Math.pow(10, balanceInfo.value.decimals)).toLocaleString(undefined, { maximumFractionDigits: 0 });
          
          gameState.chatMessages.push({
-            sender: 'SYSTEM',
-            text: `🔥 SERVER BOUGHT & BURNED ${formattedAmount} $SOLPOT!`,
-            isSystem: true,
-            time: Date.now()
-         });
+             sender: '🔥 BURN BOT',
+             text: `🔥 SERVER BOUGHT & BURNED ${formattedAmount} $SOLPOT!\n🔗 https://solscan.io/tx/${burnSig}`,
+             isBot: true,
+             isSystem: true,
+             time: Date.now()
+          });
          
          gameState.lastBurn = { amount: formattedAmount, time: Date.now() };
          broadcastState();

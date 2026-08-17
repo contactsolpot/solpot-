@@ -422,6 +422,13 @@ if (btnSetNick) {
   };
 }
 
+function formatChatMessage(text) {
+  let escaped = escapeHtml(text).replace(/\n/g, '<br/>');
+  // Converter links do Solscan em botões clicáveis
+  const solscanRegex = /(https:\/\/solscan\.io\/tx\/([a-zA-Z0-9]+))/g;
+  return escaped.replace(solscanRegex, '<a href="$1" target="_blank" rel="noopener" class="chat-solscan-pill">🔍 Solscan Tx ↗</a>');
+}
+
 function renderChat() {
   const container = $('chat-messages');
   if (!container || !state.chatMessages) return;
@@ -429,12 +436,18 @@ function renderChat() {
   const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 10;
   
   container.innerHTML = state.chatMessages.map(m => {
+    const formattedText = formatChatMessage(m.text);
+    const timeStr = new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+    if (m.isBot || (m.isSystem && m.sender.includes('BOT'))) {
+      return `<div class="chat-msg bot-msg"><div class="bot-header"><span class="sender bot">${escapeHtml(m.sender)}</span><span class="time">${timeStr}</span></div><div class="text">${formattedText}</div></div>`;
+    }
     if (m.isSystem) {
-      return `<div class="chat-msg sys-msg"><span class="sender sys">[System]</span><span class="text">${escapeHtml(m.text)}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
+      return `<div class="chat-msg sys-msg"><span class="sender sys">[System]</span><span class="text">${formattedText}</span><span class="time">${timeStr}</span></div>`;
     }
     const vipCls = m.isVip ? 'vip' : '';
     const vipBadge = m.isVip ? ' 👑' : '';
-    return `<div class="chat-msg"><span class="sender ${vipCls}">${escapeHtml(short(m.sender))}${vipBadge}:</span><span class="text">${escapeHtml(m.text)}</span><span class="time">${new Date(m.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
+    return `<div class="chat-msg"><span class="sender ${vipCls}">${escapeHtml(short(m.sender))}${vipBadge}:</span><span class="text">${formattedText}</span><span class="time">${timeStr}</span></div>`;
   }).join('');
   
   // Auto-scroll só se o usuário já estava no final do chat

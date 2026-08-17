@@ -797,9 +797,54 @@ a:hover { text-decoration: underline; }
 .chat-msg .sender { font-weight: 800; margin-right: 6px; color: var(--text); }
 .chat-msg .sender.vip { color: var(--gold); }
 .chat-msg .sender.sys { color: var(--cyan); }
+.chat-msg .sender.bot { color: #22d3ee; font-weight: 900; }
 .chat-msg .time { font-size: 0.7rem; color: var(--text-3); margin-left: 8px; font-weight: 400; }
 .chat-msg .text { color: var(--text); }
 .chat-msg.sys-msg .text { color: var(--cyan); font-style: italic; }
+
+/* Cyberpunk Bot Message Card */
+.chat-msg.bot-msg {
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 4px 0;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+}
+.chat-msg.bot-msg .bot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+  padding-bottom: 4px;
+}
+.chat-msg.bot-msg .text {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.chat-solscan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981 !important;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  margin-top: 6px;
+  transition: all 0.2s;
+}
+.chat-solscan-pill:hover {
+  background: #10b981;
+  color: #000 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
 
 .chat-input-area {
   display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border);
