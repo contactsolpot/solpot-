@@ -77,8 +77,8 @@ function loadState() {
 }
 
 // ==================== TOKEN GATE CONFIG ====================
-// Colocar como true quando o token estiver lançado na Pump.fun
-const TOKEN_GATE_LIVE = process.env.TOKEN_GATE_LIVE === 'true' || false;
+// Live on-chain Token Gate active with real Pump.fun token
+const TOKEN_GATE_LIVE = true;
 
 // ==================== SOLANA CONFIG ====================
 let SERVER_KEYPAIR, PLATFORM_VAULT, HOLDER_VAULT, solanaConnection;
@@ -164,11 +164,11 @@ let gameState = {
 
   token: {
     name: '$SOLPOT',
-    mint: '7RVWZavB2ufPhFxgFXNUWaX7uhTV1RtuapQHhhgspump',
+    mint: 'DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump',
     minRequired: 10000,
     vipRequired: 100000,
     vipDiscountPct: 25,
-    pumpUrl: 'https://pump.fun/7RVWZavB2ufPhFxgFXNUWaX7uhTV1RtuapQHhhgspump'
+    pumpUrl: 'https://pump.fun/DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump'
   },
 
   holderAirdrop: {
