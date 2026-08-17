@@ -115,13 +115,23 @@ app.use(cors({
 
 // Bloqueio de iFrame (Clickjacking) e proteções básicas do navegador
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'DENY'); // Impede que coloquem o site num iframe
+  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Impede que o navegador guarde cache velho do site
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: false,
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
+}));
 
 // ---------------------------------------------------------------- Config
 const RANKING_TOP_N = 10;

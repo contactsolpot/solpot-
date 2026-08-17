@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SOLPOT — The Last Bid Wins | Solana Jackpot Arena</title>
   <meta name="description" content="60 seconds. Last bid wins. 100% provably fair on Solana. Hold $SOLPOT tokens to play." />
-  <link rel="stylesheet" href="styles.css?v=1.2.0" />
+  <link rel="stylesheet" href="styles.css?v=1.4.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -18,12 +18,12 @@
   <div class="top-banner" id="top-ca-banner">
     <div class="top-banner-content">
       <span class="pulse-dot"></span>
-      <span style="font-weight: 500;">$SOLPOT CA:</span>
-      <code class="ca-text" id="ca-text">TBD_REPLACE_WITH_PUMPFUN_MINT</code>
-      <button class="ca-copy-btn" id="ca-copy-btn" title="Copy CA">
+      <span style="font-weight: 800; color: var(--gold);">$SOLPOT CA:</span>
+      <code class="ca-text" id="ca-text">DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump</code>
+      <button class="ca-copy-btn" id="ca-copy-btn" title="Copy CA" onclick="navigator.clipboard.writeText('DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump'); alert('Contract Address Copied: DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump');">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
       </button>
-      <a href="https://pump.fun/" target="_blank" rel="noopener" class="top-banner-link">Trade on Pump.fun ↗</a>
+      <a href="https://pump.fun/DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump" target="_blank" rel="noopener" class="top-banner-link">Trade on Pump.fun ↗</a>
     </div>
   </div>
 
@@ -423,6 +423,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-  <script src="app.js?v=1.2.0"></script>
+  <script src="app.js?v=1.4.0"></script>
 </body>
 </html>
