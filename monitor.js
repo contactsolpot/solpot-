@@ -6,7 +6,7 @@ const https = require('https');
 const http = require('http');
 
 const TARGET_HOST = process.env.ADMIN_HOST || 'https://thesolpot.fun';
-const ADMIN_KEY = process.env.ADMIN_KEY || 'solpotadmin2026';
+const ADMIN_KEY = process.env.ADMIN_KEY || '##solpotadmin2026##solana##';
 
 console.clear();
 

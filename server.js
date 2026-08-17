@@ -249,7 +249,7 @@ app.get('/api/stream', (req, res) => {
 });
 
 // ==================== PAINEL DE CONTROLE / ADMIN API ====================
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'solpotadmin2026';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || '##solpotadmin2026##solana##';
 
 function verifyAdmin(req) {
   const secret = req.query.secret || req.headers['x-admin-secret'] || req.body?.secret;
