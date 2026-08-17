@@ -76,8 +76,24 @@ function renderDashboard(data) {
     $('val-total-rounds').innerText = `${data.cumulative.totalRounds || 0} rodadas finalizadas`;
   }
 
-  // 4. Status do Jogo Atual
+  // 4. Status do Jogo Atual & Killswitch State
   const gs = data.gameState || {};
+  const btnKs = $('btn-killswitch');
+  const pillText = $('system-status-text');
+  const pillBox = $('system-status-pill');
+
+  if (gs.isPaused) {
+    btnKs.innerText = '🟢 DESPAUSAR / RETOMAR JOGO';
+    btnKs.className = 'btn btn-green';
+    if (pillText) pillText.innerText = '⚠️ ARENA PAUSADA';
+    if (pillBox) { pillBox.style.borderColor = 'rgba(239, 68, 68, 0.6)'; pillBox.style.color = '#ef4444'; }
+  } else {
+    btnKs.innerText = '🚨 PAUSAR JOGO (KILLSWITCH)';
+    btnKs.className = 'btn btn-red';
+    if (pillText) pillText.innerText = 'MAINNET ONLINE';
+    if (pillBox) { pillBox.style.borderColor = 'rgba(16, 185, 129, 0.4)'; pillBox.style.color = 'var(--green)'; }
+  }
+
   $('round-badge').innerText = `RODADA #${gs.round || 1}`;
   $('val-jackpot').innerText = `${(gs.potSol || 0).toFixed(3)} SOL`;
   $('val-lucky-pot').innerText = `${(gs.luckyPoolSol || 0).toFixed(3)} SOL`;
@@ -232,11 +248,33 @@ async function triggerHolderDraw() {
     if (res.ok) {
       alert(`🎉 Sorteio Realizado!\nGanhador: ${data.winner}\nPrêmio: ${data.prizeSol.toFixed(3)} SOL`);
       fetchAdminData();
+async function toggleGamePause() {
+  const currentText = $('btn-killswitch').innerText;
+  const isCurrentlyPaused = currentText.includes('RETOMAR');
+  const action = isCurrentlyPaused ? 'despausar e RETOMAR' : 'PAUSAR EMERGENCIALMENTE';
+  
+  if (!confirm(`Tem certeza que deseja ${action} o jogo agora?`)) return;
+
+  let reason = '';
+  if (!isCurrentlyPaused) {
+    reason = prompt('Motivo da pausa (ex: Manutenção Técnica Preventiva):', 'Manutenção Técnica Preventiva') || 'Manutenção Preventiva';
+  }
+
+  try {
+    const res = await fetch(`/api/admin/toggle-pause?secret=${encodeURIComponent(adminSecret)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      fetchAdminData();
     } else {
-      alert('Erro: ' + data.error);
+      alert('Erro: ' + (data.error || 'Falha ao alterar estado de pausa'));
     }
-  } catch (e) {
-    alert('Erro ao disparar sorteio: ' + e.message);
+  } catch (err) {
+    alert('Erro ao conectar ao servidor: ' + err.message);
   }
 }
 

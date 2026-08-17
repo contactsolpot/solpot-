@@ -159,6 +159,8 @@ let gameState = {
   solUsd: 145.50,
   rankingTopN: RANKING_TOP_N,
   minUniqueBidders: MIN_UNIQUE_BIDDERS,
+  isPaused: false, // 🚨 Emergency Killswitch / Pausa Administrativa
+  pauseReason: '',
 
   token: {
     name: '$SOLPOT',
@@ -331,6 +333,38 @@ app.post('/api/admin/clear-errors', (req, res) => {
   systemEvents = systemEvents.filter(e => !e.isError);
   try { fs.writeFileSync(SYSTEM_EVENTS_FILE, JSON.stringify(systemEvents, null, 2)); } catch {}
   res.json({ success: true, message: 'Erros limpos com sucesso.' });
+});
+
+// 🚨 EMERGENCY KILLSWITCH / PAUSA ADMINISTRATIVA
+app.post('/api/admin/toggle-pause', (req, res) => {
+  if (!verifyAdmin(req)) return res.status(401).json({ error: 'Acesso negado.' });
+  
+  gameState.isPaused = !gameState.isPaused;
+  gameState.pauseReason = gameState.isPaused ? (req.body?.reason || 'Manutenção Técnica Preventiva') : '';
+
+  // Notificar no chat
+  gameState.chatMessages.push({
+    sender: '🚨 SISTEMA',
+    text: gameState.isPaused ? `⚠️ O JOGO FOI PAUSADO PELA ADMINISTRAÇÃO: ${gameState.pauseReason}. Seus fundos e lances estão 100% seguros.` : `🟢 O JOGO FOI RETOMADO! Que vença o melhor sniper!`,
+    isSystem: true,
+    time: Date.now()
+  });
+
+  logSystemEvent(
+    gameState.isPaused ? 'EMERGENCY_PAUSE_ENABLED' : 'EMERGENCY_PAUSE_DISABLED',
+    gameState.isPaused ? `🚨 Jogo PAUSADO pelo administrador: ${gameState.pauseReason}` : `🟢 Jogo DESPAUSADO pelo administrador.`,
+    { isPaused: gameState.isPaused },
+    gameState.isPaused
+  );
+
+  saveState();
+  broadcastState();
+
+  res.json({
+    success: true,
+    isPaused: gameState.isPaused,
+    message: gameState.isPaused ? '🚨 Jogo pausado com sucesso! Lances bloqueados.' : '🟢 Jogo retomado com sucesso!'
+  });
 });
 
 app.get('/api/check-holder/:address', async (req, res) => {
@@ -530,6 +564,12 @@ app.post('/api/bid', async (req, res) => {
   const { address, amountSol, sig, blockhash, lastValidBlockHeight } = req.body;
   if (!address || !amountSol) return res.status(400).json({ error: "Missing data" });
   
+  if (gameState.isPaused) {
+    return res.status(503).json({
+      error: `🚨 O JOGO ESTÁ TEMPORARIAMENTE PAUSADO: ${gameState.pauseReason || 'Manutenção Preventiva'}. Nenhum fundo foi debitado.`
+    });
+  }
+  
   // C1 FIX: Buscar saldo do token no SERVIDOR, nunca confiar no cliente
   let currentBalance = 0;
   if (TOKEN_GATE_LIVE) {
@@ -691,6 +731,7 @@ app.post('/api/chat', (req, res) => {
 
 // ---------------------------------------------------------------- Game Loop
 setInterval(() => {
+  if (gameState.isPaused) return; // Congela o cronômetro durante a pausa
   if (!gameState.deadline) return;
   const now = Date.now();
   if (now >= gameState.deadline) {

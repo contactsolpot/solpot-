@@ -256,6 +256,22 @@ function render() {
   const be = $('bid-edge');
   if (be) be.textContent = edge > 0 ? `Potential: +${sol(edge)} SOL` : 'Pot scaling up';
 
+  // 🚨 Emergency Pause UI State
+  const btnBid = $('btn-bid');
+  if (state.isPaused) {
+    if (btnBid) {
+      btnBid.disabled = true;
+      btnBid.innerText = '⚠️ ARENA EM PAUSA TÉCNICA';
+      btnBid.style.opacity = '0.6';
+    }
+  } else {
+    if (btnBid && btnBid.disabled && btnBid.innerText.includes('PAUSA')) {
+      btnBid.disabled = false;
+      btnBid.innerText = 'PLACE BID';
+      btnBid.style.opacity = '1';
+    }
+  }
+
   // Leader
   const addr = $('leader-addr');
   const llink = $('leader-link');
