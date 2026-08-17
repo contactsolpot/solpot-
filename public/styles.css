@@ -116,6 +116,77 @@ a:hover { text-decoration: underline; }
 .led { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
 .led.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
 
+/* ==================== CA BANNER ==================== */
+.ca-banner {
+  background: rgba(139, 92, 246, 0.08);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 8px 16px;
+  position: relative;
+  z-index: 99;
+}
+.ca-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+.ca-tag {
+  font-weight: 900;
+  color: var(--gold);
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+.ca-code {
+  font-family: var(--mono);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #22d3ee;
+  font-weight: 700;
+  font-size: 0.8rem;
+  user-select: all;
+}
+.ca-copy-btn {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid var(--purple);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ca-copy-btn:hover {
+  background: var(--purple);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+.ca-pump-btn {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--green);
+  color: var(--green);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.ca-pump-btn:hover {
+  background: var(--green);
+  color: #000;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
 /* ==================== PAGE ==================== */
 .page { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; position: relative; z-index: 1; }
 
