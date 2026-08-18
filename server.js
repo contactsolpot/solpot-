@@ -136,7 +136,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // ---------------------------------------------------------------- Config
 const RANKING_TOP_N = 10;
 const RANKING_SHARES = [0.25, 0.18, 0.13, 0.10, 0.08, 0.07, 0.06, 0.05, 0.04, 0.04];
-const MIN_UNIQUE_BIDDERS = 2; // Round only settles with 2+ unique wallets
+const MIN_UNIQUE_BIDDERS = 1; // Instant win enabled: 1+ player can settle and win the seeded pot!
+const INITIAL_POT_SEED = 0.015; // 💰 House Seed: Every round starts with 0.015 SOL in the pot!
 
 let sseClients = [];
 
@@ -155,7 +156,7 @@ const sampleWallets = [
 
 let gameState = {
   round: 1,
-  potSol: 0,
+  potSol: INITIAL_POT_SEED, // Starts with 0.015 SOL House Seed!
   luckyPoolSol: 0, // 5% Lucky Draw Raffle for round participants
   rankingPoolSol: 0,
   holderPoolSol: 0.02,
@@ -828,7 +829,7 @@ setInterval(() => {
 
         // Prepare for next round
         gameState.round += 1;
-        gameState.potSol = 0;
+        gameState.potSol = INITIAL_POT_SEED; // 💰 Next round starts with 0.015 SOL House Seed!
         gameState.luckyPoolSol = 0;
         gameState.devFeeSol = 0; // Reseta a taxa da plataforma acumulada nesta rodada
         gameState.minBidSol = 0.005; // Reseta pro valor mínimo de 0.005 SOL
@@ -846,6 +847,7 @@ setInterval(() => {
 
     // Fallback caso não haja líder (não deve acontecer)
     gameState.round += 1;
+    gameState.potSol = INITIAL_POT_SEED;
     gameState.deadline = null;
     broadcastState();
   }
@@ -865,6 +867,9 @@ app.listen(PORT, () => {
       vipDiscountPct: 25,
       pumpUrl: 'https://pump.fun/DQeKCYQzh5EGZUk363nC4LqWbBm5owcUNF8pvLvipump'
     };
+    if (!gameState.potSol || gameState.potSol < INITIAL_POT_SEED) {
+      gameState.potSol = INITIAL_POT_SEED;
+    }
     // Reset transient fields
     gameState.deadline = null;
     gameState.health.lastReadAt = Date.now();

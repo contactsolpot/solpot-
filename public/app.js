@@ -158,20 +158,22 @@ function paintClock() {
   const up = $('unique-players');
   if (up) up.textContent = (state.uniqueBidders || []).length;
 
-  // Players notice
+  // Players notice (Hidden if minUniqueBidders <= 1)
   if (playersNotice) {
     const uniqueCount = (state.uniqueBidders || []).length;
-    playersNotice.hidden = uniqueCount >= (state.minUniqueBidders || 2);
+    playersNotice.hidden = (state.minUniqueBidders || 1) <= 1 || uniqueCount >= (state.minUniqueBidders || 1);
   }
 
   const dz = $('danger-zone-alert');
 
   if (!state.deadline) {
-    const playersNeeded = (state.minUniqueBidders || 2) - (state.uniqueBidders || []).length;
-    clock.textContent = `${String(state.roundSeconds).padStart(2, '0')}.0`;
-    label.textContent = playersNeeded > 0 ? 'WAITING FOR PLAYERS' : 'WAITING FOR BIDS';
-    if (sub) sub.textContent = playersNeeded > 0 ? `Need ${playersNeeded} more player(s) to start the clock!` : 'Next bid starts the 60-second clock!';
-    if (fill) fill.style.width = '100%';
+    // ⏱️ Active Ticking Lobby Clock
+    const lobbySecs = 60 - Math.floor((Date.now() / 1000) % 60);
+    const pct = (lobbySecs / 60) * 100;
+    clock.textContent = lobbySecs < 10 ? `0${lobbySecs}.0` : `${lobbySecs}.0`;
+    label.textContent = '⚡ ARENA READY — BID TO WIN!';
+    if (sub) sub.textContent = '💰 Initial Pot Seed Active! Place first bid to take the lead!';
+    if (fill) fill.style.width = `${pct}%`;
     if (dz) dz.classList.add('hidden');
     return;
   }
